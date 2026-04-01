@@ -123,9 +123,9 @@ test.describe.serial('Workspace flows', () => {
     await page.waitForTimeout(1000);
     await page.screenshot({ path: 'e2e/screenshots/ws-06-settings.png' });
 
-    await expect(page.getByText('General')).toBeVisible();
-    await expect(page.getByText('Storage')).toBeVisible();
-    await expect(page.getByText('Danger zone')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'General' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Storage' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Danger zone' })).toBeVisible();
   });
 
   // ── Navigate to members ───────────────────────────────────────────────
@@ -139,10 +139,11 @@ test.describe.serial('Workspace flows', () => {
     await page.waitForTimeout(1000);
     await page.screenshot({ path: 'e2e/screenshots/ws-07-members.png' });
 
-    // Should show the user as owner
-    await expect(page.getByText(TEST_USER.email, { exact: false })).toBeVisible();
-    await expect(page.getByText('owner')).toBeVisible();
-    await expect(page.getByText('Invite members')).toBeVisible();
+    // Should show the user as owner in the main content area
+    const main = page.getByRole('main');
+    await expect(main.getByText(TEST_USER.email, { exact: false })).toBeVisible();
+    await expect(main.getByText('owner')).toBeVisible();
+    await expect(main.getByRole('heading', { name: 'Invite members' })).toBeVisible();
   });
 
   // ── Invite member (form submission) ───────────────────────────────────
@@ -171,13 +172,12 @@ test.describe.serial('Workspace flows', () => {
     await page.waitForURL(/\/w\//, { timeout: 15000 });
     await page.waitForTimeout(1000);
 
-    // Click the workspace switcher in the sidebar header
-    const switcher = page.locator('[data-sidebar="header"] [data-slot="sidebar-menu-button"]').first();
-    await switcher.click();
+    // Click the workspace switcher (the "Test Workspace" button in sidebar header)
+    await page.getByRole('button', { name: /Test Workspace/i }).click();
     await page.waitForTimeout(500);
     await page.screenshot({ path: 'e2e/screenshots/ws-09-workspace-switcher.png' });
 
-    // Should show "Create workspace" option
+    // Should show "Create workspace" option in the dropdown
     await expect(page.getByText('Create workspace')).toBeVisible();
   });
 

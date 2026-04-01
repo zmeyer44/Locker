@@ -18,6 +18,13 @@ import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -104,14 +111,15 @@ export default function MembersPage() {
                 onChange={(e) => setInviteEmail(e.target.value)}
                 className="flex-1"
               />
-              <select
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value as 'member' | 'admin')}
-                className="h-9 rounded-lg border bg-background px-3 text-sm"
-              >
-                <option value="member">Member</option>
-                <option value="admin">Admin</option>
-              </select>
+              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as 'member' | 'admin')}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Member</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
               <Button type="submit" disabled={sendInvite.isPending || !inviteEmail.trim()}>
                 {sendInvite.isPending ? (
                   <Loader2 className="animate-spin" />

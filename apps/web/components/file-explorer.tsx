@@ -15,7 +15,7 @@ import {
   Home,
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc/client';
-import { cn, formatBytes, formatDate } from '@/lib/utils';
+import { formatBytes, formatDate } from '@/lib/utils';
 import { FileIcon } from '@/components/file-icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,8 +32,14 @@ import { UploadDialog } from '@/components/upload-dialog';
 import { CreateFolderDialog } from '@/components/create-folder-dialog';
 import { RenameDialog } from '@/components/rename-dialog';
 import { ShareDialog } from '@/components/share-dialog';
+import { DroppableFolderRow } from '@/components/file-explorer/droppable-folder-row';
+import { DraggableFileRow } from '@/components/file-explorer/draggable-file-row';
+import { useFileDrop } from '@/hooks/use-file-drop';
 import { useWorkspace } from '@/lib/workspace-context';
 import { toast } from 'sonner';
+
+const ROW_GRID =
+  'grid grid-cols-[1fr_40px] sm:grid-cols-[1fr_100px_140px_40px] gap-4 px-4 py-2.5 border-b last:border-b-0';
 
 export function FileExplorer({ folderId }: { folderId: string | null }) {
   const router = useRouter();
@@ -53,6 +59,7 @@ export function FileExplorer({ folderId }: { folderId: string | null }) {
   } | null>(null);
 
   const utils = trpc.useUtils();
+  const { handleDrop } = useFileDrop();
 
   const { data: breadcrumbs } = trpc.folders.getBreadcrumbs.useQuery({
     folderId,
@@ -99,6 +106,13 @@ export function FileExplorer({ folderId }: { folderId: string | null }) {
     [getDownloadUrl],
   );
 
+  const onDrop = useCallback(
+    (item: { id: string; type: 'file' | 'folder' }, targetFolderId: string) => {
+      handleDrop(item, targetFolderId);
+    },
+    [handleDrop],
+  );
+
   const folders = folderList ?? [];
   const files = fileList?.items ?? [];
   const isEmpty = folders.length === 0 && files.length === 0 && !search;
@@ -122,7 +136,9 @@ export function FileExplorer({ folderId }: { folderId: string | null }) {
               <span key={crumb.id} className="flex items-center gap-1">
                 <ChevronRight className="size-3 text-muted-foreground/50" />
                 <button
-                  onClick={() => router.push(`/w/${workspace.slug}/folder/${crumb.id}`)}
+                  onClick={() =>
+                    router.push(`/w/${workspace.slug}/folder/${crumb.id}`)
+                  }
                   className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
                 >
                   {crumb.name}
@@ -194,20 +210,31 @@ export function FileExplorer({ folderId }: { folderId: string | null }) {
               <span />
             </div>
 
-            {/* Folders */}
+            {/* Folders — droppable targets + draggable sources */}
             {folders.map((folder) => (
-              <div
+              <DroppableFolderRow
                 key={folder.id}
-                className="grid grid-cols-[1fr_40px] sm:grid-cols-[1fr_100px_140px_40px] gap-4 px-4 py-2.5 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer group transition-colors"
-                onClick={() => router.push(`/w/${workspace.slug}/folder/${folder.id}`)}
+                folderId={folder.id}
+                folderName={folder.name}
+                onDrop={onDrop}
+                onClick={() =>
+                  router.push(`/w/${workspace.slug}/folder/${folder.id}`)
+                }
+                className={`${ROW_GRID} hover:bg-muted/50 cursor-pointer group transition-colors`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <FileIcon name={folder.name} isFolder className="size-4 shrink-0" />
+                  <FileIcon
+                    name={folder.name}
+                    isFolder
+                    className="size-4 shrink-0"
+                  />
                   <span className="text-sm font-medium truncate">
                     {folder.name}
                   </span>
                 </div>
-                <span className="hidden sm:block text-xs font-mono text-muted-foreground">&mdash;</span>
+                <span className="hidden sm:block text-xs font-mono text-muted-foreground">
+                  &mdash;
+                </span>
                 <span className="hidden sm:block text-xs font-mono text-muted-foreground">
                   {formatDate(folder.updatedAt)}
                 </span>
@@ -250,7 +277,9 @@ export function FileExplorer({ folderId }: { folderId: string | null }) {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         variant="destructive"
-                        onSelect={() => deleteFolder.mutate({ id: folder.id })}
+                        onSelect={() =>
+                          deleteFolder.mutate({ id: folder.id })
+                        }
                       >
                         <Trash2 />
                         Delete
@@ -258,14 +287,16 @@ export function FileExplorer({ folderId }: { folderId: string | null }) {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-              </div>
+              </DroppableFolderRow>
             ))}
 
-            {/* Files */}
+            {/* Files — draggable sources */}
             {files.map((file) => (
-              <div
+              <DraggableFileRow
                 key={file.id}
-                className="grid grid-cols-[1fr_40px] sm:grid-cols-[1fr_100px_140px_40px] gap-4 px-4 py-2.5 border-b last:border-b-0 hover:bg-muted/50 group transition-colors"
+                fileId={file.id}
+                fileName={file.name}
+                className={`${ROW_GRID} hover:bg-muted/50 group transition-colors`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <FileIcon
@@ -332,7 +363,7 @@ export function FileExplorer({ folderId }: { folderId: string | null }) {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
+              </DraggableFileRow>
             ))}
           </div>
         )}

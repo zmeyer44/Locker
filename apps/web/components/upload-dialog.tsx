@@ -7,6 +7,7 @@ import { trpc } from '@/lib/trpc/client';
 import { cn, formatBytes } from '@/lib/utils';
 import { FileIcon } from '@/components/file-icon';
 import { Button } from '@/components/ui/button';
+import { useWorkspace } from '@/lib/workspace-context';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -35,6 +36,7 @@ export function UploadDialog({
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const utils = trpc.useUtils();
+  const workspace = useWorkspace();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.map((file) => ({
@@ -79,6 +81,7 @@ export function UploadDialog({
         const res = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
+          headers: { 'x-workspace-slug': workspace.slug },
         });
 
         if (!res.ok) {
