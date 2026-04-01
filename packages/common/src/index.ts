@@ -16,6 +16,9 @@ export { WORKSPACE_ROLES } from './types';
 
 export {
   MAX_FILE_SIZE,
+  MULTIPART_THRESHOLD,
+  MULTIPART_PART_SIZE,
+  MULTIPART_MAX_CONCURRENCY,
   MAX_STORAGE_PER_USER,
   MAX_STORAGE_PER_WORKSPACE,
   DEFAULT_PAGE_SIZE,
@@ -50,5 +53,8 @@ export {
   updateWorkspaceSchema,
   inviteMemberSchema,
   updateMemberRoleSchema,
+  initiateUploadSchema,
+  completeUploadSchema,
+  abortUploadSchema,
   generateSlug,
 } from './validation';

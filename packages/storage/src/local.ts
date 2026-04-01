@@ -1,9 +1,12 @@
 import * as fs from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
 import * as path from 'node:path';
 import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import type { StorageProvider } from './interface';
 
 export class LocalStorageAdapter implements StorageProvider {
+  readonly supportsPresignedUpload = false;
   private baseDir: string;
 
   constructor() {
@@ -23,24 +26,16 @@ export class LocalStorageAdapter implements StorageProvider {
     const fullPath = this.resolvePath(params.path);
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
 
-    let buffer: Buffer;
     if (Buffer.isBuffer(params.data)) {
-      buffer = params.data;
+      await fs.writeFile(fullPath, params.data);
     } else {
-      const reader = (params.data as ReadableStream).getReader();
-      const chunks: Uint8Array[] = [];
-      let done = false;
-      while (!done) {
-        const result = await reader.read();
-        done = result.done;
-        if (result.value) {
-          chunks.push(result.value);
-        }
-      }
-      buffer = Buffer.concat(chunks);
+      // Stream directly to disk — no buffering in memory
+      const webStream = params.data as ReadableStream;
+      const nodeReadable = Readable.fromWeb(webStream as any);
+      const writeStream = createWriteStream(fullPath);
+      await pipeline(nodeReadable, writeStream);
     }
 
-    await fs.writeFile(fullPath, buffer);
     return { url: `/api/files/serve/${params.path}`, path: params.path };
   }
 
@@ -77,7 +72,6 @@ export class LocalStorageAdapter implements StorageProvider {
     contentType: string;
     expiresIn?: number;
   }): Promise<{ url: string }> {
-    // Local storage uses direct upload, no presigned URL needed
     return { url: `/api/upload?path=${encodeURIComponent(params.path)}` };
   }
 

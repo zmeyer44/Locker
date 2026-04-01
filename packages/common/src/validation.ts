@@ -82,6 +82,29 @@ export const updateMemberRoleSchema = z.object({
 
 // ── Slug utility ───────────────────────────────────────────────────────────
 
+// ── Upload schemas ─────────────────────────────────────────────────────
+
+export const initiateUploadSchema = z.object({
+  fileName: z.string().min(1).max(255),
+  fileSize: z.number().int().min(1).max(MAX_FILE_SIZE),
+  contentType: z.string().min(1).max(255),
+  folderId: z.string().uuid().nullable().optional(),
+});
+
+export const completeUploadSchema = z.object({
+  fileId: z.string().uuid(),
+  uploadId: z.string().optional(),
+  parts: z.array(z.object({
+    partNumber: z.number().int().min(1),
+    etag: z.string().min(1),
+  })).optional(),
+});
+
+export const abortUploadSchema = z.object({
+  fileId: z.string().uuid(),
+  uploadId: z.string().optional(),
+});
+
 export function generateSlug(name: string): string {
   return name
     .toLowerCase()

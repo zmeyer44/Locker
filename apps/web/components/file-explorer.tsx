@@ -34,6 +34,7 @@ import { RenameDialog } from '@/components/rename-dialog';
 import { ShareDialog } from '@/components/share-dialog';
 import { DroppableFolderRow } from '@/components/file-explorer/droppable-folder-row';
 import { DraggableFileRow } from '@/components/file-explorer/draggable-file-row';
+import { DesktopDropOverlay } from '@/components/desktop-drop-overlay';
 import { useFileDrop } from '@/hooks/use-file-drop';
 import { useWorkspace } from '@/lib/workspace-context';
 import { toast } from 'sonner';
@@ -47,6 +48,7 @@ export function FileExplorer({ folderId }: { folderId: string | null }) {
   const [search, setSearch] = useState('');
   const [showUpload, setShowUpload] = useState(false);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
+  const [droppedFiles, setDroppedFiles] = useState<File[] | undefined>(undefined);
   const [renameTarget, setRenameTarget] = useState<{
     id: string;
     name: string;
@@ -105,6 +107,11 @@ export function FileExplorer({ folderId }: { folderId: string | null }) {
     },
     [getDownloadUrl],
   );
+
+  const handleDesktopDrop = useCallback((files: File[]) => {
+    setDroppedFiles(files);
+    setShowUpload(true);
+  }, []);
 
   const onDrop = useCallback(
     (item: { id: string; type: 'file' | 'folder' }, targetFolderId: string) => {
@@ -369,11 +376,18 @@ export function FileExplorer({ folderId }: { folderId: string | null }) {
         )}
       </div>
 
+      {/* Desktop file drop overlay */}
+      <DesktopDropOverlay onFilesDropped={handleDesktopDrop} />
+
       {/* Dialogs */}
       <UploadDialog
         open={showUpload}
-        onOpenChange={setShowUpload}
+        onOpenChange={(open) => {
+          setShowUpload(open);
+          if (!open) setDroppedFiles(undefined);
+        }}
         folderId={folderId}
+        initialFiles={droppedFiles}
       />
       <CreateFolderDialog
         open={showCreateFolder}

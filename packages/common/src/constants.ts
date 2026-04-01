@@ -1,6 +1,9 @@
 // ── File size limits ────────────────────────────────────────────────────────
 
 export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+export const MULTIPART_THRESHOLD = 10 * 1024 * 1024; // 10MB - use multipart above this
+export const MULTIPART_PART_SIZE = 10 * 1024 * 1024; // 10MB per part
+export const MULTIPART_MAX_CONCURRENCY = 4;
 export const MAX_STORAGE_PER_USER = 5 * 1024 * 1024 * 1024; // 5GB
 export const MAX_STORAGE_PER_WORKSPACE = 5 * 1024 * 1024 * 1024; // 5GB
 

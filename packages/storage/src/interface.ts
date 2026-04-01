@@ -23,4 +23,37 @@ export interface StorageProvider {
   delete(path: string): Promise<void>;
 
   exists(path: string): Promise<boolean>;
+
+  // Presigned upload support
+  readonly supportsPresignedUpload: boolean;
+
+  createPresignedUpload?(params: {
+    path: string;
+    contentType: string;
+    size: number;
+    expiresIn?: number;
+  }): Promise<{ url: string; method: 'PUT' }>;
+
+  createMultipartUpload?(params: {
+    path: string;
+    contentType: string;
+  }): Promise<{ uploadId: string }>;
+
+  getMultipartPartUrls?(params: {
+    path: string;
+    uploadId: string;
+    parts: number;
+    expiresIn?: number;
+  }): Promise<{ urls: { partNumber: number; url: string }[] }>;
+
+  completeMultipartUpload?(params: {
+    path: string;
+    uploadId: string;
+    parts: { partNumber: number; etag: string }[];
+  }): Promise<void>;
+
+  abortMultipartUpload?(params: {
+    path: string;
+    uploadId: string;
+  }): Promise<void>;
 }

@@ -2,6 +2,8 @@ import { put, del, head } from '@vercel/blob';
 import type { StorageProvider } from './interface';
 
 export class VercelBlobAdapter implements StorageProvider {
+  readonly supportsPresignedUpload = false;
+
   async upload(params: {
     path: string;
     data: Buffer | ReadableStream;

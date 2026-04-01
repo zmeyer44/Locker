@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const file = formData.get('file') as File | null;
   const folderId = formData.get('folderId') as string | null;
+  const existingFileId = formData.get('fileId') as string | null;
 
   if (!file) {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
   }
 
   const storage = createStorage();
-  const fileId = randomUUID();
+  const fileId = existingFileId || randomUUID();
   const storagePath = `${workspaceId}/${fileId}/${file.name}`;
 
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -85,21 +86,35 @@ export async function POST(req: NextRequest) {
     contentType: file.type || 'application/octet-stream',
   });
 
-  const [newFile] = await db
-    .insert(files)
-    .values({
-      id: fileId,
-      workspaceId,
-      userId,
-      folderId: folderId || null,
-      name: file.name,
-      mimeType: file.type || 'application/octet-stream',
-      size: file.size,
-      storagePath,
-      storageProvider: process.env.BLOB_STORAGE_PROVIDER ?? 'local',
-      status: 'ready',
-    })
-    .returning();
+  let newFile;
+  if (existingFileId) {
+    // Update existing record created by uploads.initiate
+    [newFile] = await db
+      .update(files)
+      .set({
+        storagePath,
+        status: 'ready',
+        updatedAt: new Date(),
+      })
+      .where(and(eq(files.id, existingFileId), eq(files.workspaceId, workspaceId)))
+      .returning();
+  } else {
+    [newFile] = await db
+      .insert(files)
+      .values({
+        id: fileId,
+        workspaceId,
+        userId,
+        folderId: folderId || null,
+        name: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        size: file.size,
+        storagePath,
+        storageProvider: process.env.BLOB_STORAGE_PROVIDER ?? 'local',
+        status: 'ready',
+      })
+      .returning();
+  }
 
   // Update workspace storage usage
   await db
