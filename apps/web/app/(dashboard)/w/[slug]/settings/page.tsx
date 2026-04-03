@@ -7,8 +7,6 @@ import { trpc } from '@/lib/trpc/client';
 import { useWorkspace } from '@/lib/workspace-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
-import { SidebarTrigger } from '@/components/ui/sidebar';
 import { toast } from 'sonner';
 import { formatBytes } from '@/lib/utils';
 
@@ -55,8 +53,6 @@ export default function WorkspaceSettingsPage() {
     <div>
       <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-b bg-background">
         <div className="flex flex-1 items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
           <Settings className="size-4 text-muted-foreground" />
           <span className="text-sm font-medium">Settings</span>
         </div>

@@ -20,8 +20,6 @@ import {
 } from '@openstore/common';
 import { trpc } from '@/lib/trpc/client';
 import { useWorkspace } from '@/lib/workspace-context';
-import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -313,8 +311,6 @@ export default function PluginsPage() {
     <div>
       <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-b bg-background">
         <div className="flex flex-1 items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
           <Puzzle className="size-4 text-muted-foreground" />
           <span className="text-sm font-medium">Plugins</span>
         </div>

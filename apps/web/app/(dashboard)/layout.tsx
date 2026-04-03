@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/server/auth';
 import { headers } from 'next/headers';
 import { AppSidebar } from '@/components/app-sidebar';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
 export default async function DashboardLayout({
   children,
@@ -16,9 +15,13 @@ export default async function DashboardLayout({
   }
 
   return (
-    <SidebarProvider>
+    <div className="flex h-screen w-screen overflow-hidden">
       <AppSidebar user={session.user} />
-      <SidebarInset>{children}</SidebarInset>
-    </SidebarProvider>
+      <div className="flex flex-1 p-2 pl-0">
+        <main className="flex-1 overflow-auto rounded-lg border bg-background shadow-md">
+          {children}
+        </main>
+      </div>
+    </div>
   );
 }

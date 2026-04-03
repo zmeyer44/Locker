@@ -18,8 +18,6 @@ import {
 import { trpc } from '@/lib/trpc/client';
 import { formatDate, getRelativeTime } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { SidebarTrigger } from '@/components/ui/sidebar';
 import { FileIcon } from '@/components/file-icon';
 import { toast } from 'sonner';
 
@@ -57,8 +55,6 @@ export default function TrackedLinksPage() {
     <div>
       <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-b bg-background">
         <div className="flex flex-1 items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
           <BarChart3 className="size-4 text-muted-foreground" />
           <span className="text-sm font-medium">Tracked Links</span>
         </div>

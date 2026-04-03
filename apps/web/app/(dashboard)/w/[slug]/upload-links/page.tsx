@@ -6,8 +6,6 @@ import { trpc } from '@/lib/trpc/client';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
-import { SidebarTrigger } from '@/components/ui/sidebar';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -61,8 +59,6 @@ export default function UploadLinksPage() {
       {/* Sticky top bar */}
       <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-b bg-background">
         <div className="flex flex-1 items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
           <span className="text-sm font-medium">Upload Links</span>
         </div>
         <div className="px-4">
