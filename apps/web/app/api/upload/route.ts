@@ -19,6 +19,10 @@ import {
 import { ftsClient } from "../../../server/plugins/handlers/fts-client";
 import { resolvePluginEndpoint } from "../../../server/plugins/resolve-endpoint";
 import { invalidateWorkspaceVfsSnapshot } from "../../../server/vfs/locker-vfs";
+import {
+  isTextIndexable,
+  transcribeFile,
+} from "../../../server/plugins/transcription";
 
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -313,6 +317,20 @@ export async function POST(req: NextRequest) {
         } catch {}
       }
     })();
+
+    // Fire-and-forget: transcribe non-text files (images, PDFs, etc.)
+    if (!isTextIndexable(uploadedFile.mimeType)) {
+      void transcribeFile({
+        db,
+        workspaceId,
+        userId,
+        fileId: uploadedFile.id,
+        fileName: uploadedFile.name,
+        mimeType: uploadedFile.mimeType,
+        storagePath: uploadedFile.storagePath,
+        storageConfigId: uploadedFile.storageConfigId,
+      }).catch(() => {});
+    }
   }
 
   invalidateWorkspaceVfsSnapshot(workspaceId);

@@ -9,3 +9,4 @@ export * from "./s3-multipart";
 export * from "./tracked-links";
 export * from "./plugins";
 export * from "./workspace-storage-configs";
+export * from "./file-transcriptions";

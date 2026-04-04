@@ -1,6 +1,6 @@
-import type { Database } from '@locker/database';
-import type { StorageProvider } from '@locker/storage';
-import type { PluginManifest } from '@locker/common';
+import type { Database } from "@locker/database";
+import type { StorageProvider } from "@locker/storage";
+import type { PluginManifest } from "@locker/common";
 
 /** Scoped context passed to every plugin handler invocation. */
 export interface PluginContext {
@@ -15,14 +15,14 @@ export interface PluginContext {
 }
 
 export interface ActionResult {
-  status: 'success' | 'queued';
+  status: "success" | "queued";
   message: string;
   downloadUrl?: string;
   filename?: string;
 }
 
 export interface ActionTarget {
-  type: 'file' | 'folder' | 'workspace';
+  type: "file" | "folder" | "workspace";
   id: string;
   name: string;
 }
@@ -31,6 +31,10 @@ export interface SearchResult {
   fileId: string;
   score: number;
   snippet?: string;
+}
+
+export interface TranscriptionResult {
+  content: string;
 }
 
 /**
@@ -57,4 +61,19 @@ export interface PluginHandler {
     ctx: PluginContext,
     params: { query: string; folderId?: string | null; limit?: number },
   ): Promise<SearchResult[]>;
+
+  /**
+   * Generate a markdown transcription of a non-text file's content.
+   * Called when the plugin has the `document_transcription` capability.
+   */
+  transcribe?(
+    ctx: PluginContext,
+    params: {
+      fileId: string;
+      fileName: string;
+      mimeType: string;
+      storagePath: string;
+      storageConfigId: string | null;
+    },
+  ): Promise<TranscriptionResult>;
 }

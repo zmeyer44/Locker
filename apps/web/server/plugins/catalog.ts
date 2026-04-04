@@ -145,6 +145,64 @@ const builtinPluginManifestsRaw: PluginManifest[] = [
       },
     ],
   },
+  {
+    slug: "document-transcription",
+    name: "Document Transcription",
+    description:
+      "Generates searchable markdown descriptions of images and PDFs by sending them to an external AI/OCR service endpoint. The generated text is automatically indexed so non-text files become discoverable through search.",
+    version: "0.1.0",
+    developer: "Locker",
+    source: "official",
+    permissions: ["files.read", "files.write", "external.network"],
+    capabilities: ["document_transcription", "file_actions"],
+    actions: [
+      {
+        id: "transcription.regenerate",
+        label: "Regenerate Transcription",
+        description:
+          "Re-generate the markdown transcription for this file using the configured AI/OCR service.",
+        target: "file",
+        requiresPermissions: ["files.read", "files.write"],
+      },
+    ],
+    configFields: [
+      {
+        key: "serviceUrl",
+        label: "Service URL",
+        description:
+          "HTTP endpoint that accepts file content and returns markdown text. Must accept POST requests with the file as the request body.",
+        type: "url",
+        required: true,
+      },
+      {
+        key: "apiKey",
+        label: "API Key",
+        description:
+          "Authentication key sent as a Bearer token in the Authorization header.",
+        type: "secret",
+        required: false,
+      },
+      {
+        key: "model",
+        label: "Model",
+        description:
+          'Model identifier to use for transcription (e.g., "gpt-4o", "claude-sonnet-4-6"). Leave empty for the service default.',
+        type: "text",
+        required: false,
+      },
+    ],
+    transcription: {
+      supportedMimeTypes: [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/gif",
+        "image/tiff",
+        "application/pdf",
+      ],
+      priority: 50,
+    },
+  },
 ];
 
 const builtinPluginManifests = builtinPluginManifestsRaw.map((manifest) =>

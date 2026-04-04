@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useMemo } from "react";
 import {
   FolderPlus,
   Upload,
@@ -14,6 +15,8 @@ import {
   Home,
   BarChart3,
   Sparkles,
+  FileText,
+  Loader2,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { formatBytes, formatDate } from "@/lib/utils";
@@ -31,6 +34,7 @@ import { CreateFolderDialog } from "@/components/create-folder-dialog";
 import { RenameDialog } from "@/components/rename-dialog";
 import { ShareDialog } from "@/components/share-dialog";
 import { CreateTrackedLinkDialog } from "@/components/create-tracked-link-dialog";
+import { TranscriptionViewer } from "@/components/transcription-viewer";
 import { DroppableFolderRow } from "@/components/file-explorer/droppable-folder-row";
 import { DraggableFileRow } from "@/components/file-explorer/draggable-file-row";
 import { CommandSearch } from "@/components/command-search";
@@ -64,6 +68,10 @@ export function FileExplorer({ folderId }: { folderId: string | null }) {
     id: string;
     name: string;
     type: "file" | "folder";
+  } | null>(null);
+  const [transcriptionTarget, setTranscriptionTarget] = useState<{
+    id: string;
+    name: string;
   } | null>(null);
 
   const utils = trpc.useUtils();
@@ -108,6 +116,27 @@ export function FileExplorer({ folderId }: { folderId: string | null }) {
   });
   const { data: folderPluginActions = [] } = trpc.plugins.fileActions.useQuery({
     target: "folder",
+  });
+
+  const fileIds = useMemo(
+    () => (fileList?.items ?? []).map((f) => f.id),
+    [fileList],
+  );
+  const { data: transcriptionStatuses = {} } =
+    trpc.transcriptions.statusByFileIds.useQuery(
+      { fileIds },
+      { enabled: fileIds.length > 0 },
+    );
+  const generateTranscription = trpc.transcriptions.generate.useMutation({
+    onSuccess: (result) => {
+      if (result.status === "queued") {
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
+      }
+      utils.transcriptions.statusByFileIds.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
   });
 
   const handleDownload = useCallback(
@@ -444,6 +473,73 @@ export function FileExplorer({ folderId }: { folderId: string | null }) {
                         ))}
                       </>
                     )}
+                    {(() => {
+                      const tStatus = transcriptionStatuses[file.id];
+                      if (tStatus === "ready") {
+                        return (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                setTranscriptionTarget({
+                                  id: file.id,
+                                  name: file.name,
+                                })
+                              }
+                            >
+                              <FileText />
+                              View Transcription
+                            </DropdownMenuItem>
+                          </>
+                        );
+                      }
+                      if (tStatus === "processing") {
+                        return (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem disabled>
+                              <Loader2 className="animate-spin" />
+                              Transcription in progress...
+                            </DropdownMenuItem>
+                          </>
+                        );
+                      }
+                      if (tStatus === "failed") {
+                        return (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                generateTranscription.mutate({
+                                  fileId: file.id,
+                                })
+                              }
+                            >
+                              <FileText />
+                              Retry Transcription
+                            </DropdownMenuItem>
+                          </>
+                        );
+                      }
+                      if (!tStatus && !file.mimeType.startsWith("text/")) {
+                        return (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                generateTranscription.mutate({
+                                  fileId: file.id,
+                                })
+                              }
+                            >
+                              <FileText />
+                              Generate Transcription
+                            </DropdownMenuItem>
+                          </>
+                        );
+                      }
+                      return null;
+                    })()}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       variant="destructive"
@@ -497,6 +593,13 @@ export function FileExplorer({ folderId }: { folderId: string | null }) {
           open={!!trackTarget}
           onOpenChange={(open) => !open && setTrackTarget(null)}
           target={trackTarget}
+        />
+      )}
+      {transcriptionTarget && (
+        <TranscriptionViewer
+          open={!!transcriptionTarget}
+          onOpenChange={(open) => !open && setTranscriptionTarget(null)}
+          file={transcriptionTarget}
         />
       )}
     </div>

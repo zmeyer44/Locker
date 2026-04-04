@@ -1,24 +1,24 @@
-import { z } from 'zod';
+import { z } from "zod";
 
-export const PLUGIN_SOURCES = ['official', 'community', 'inhouse'] as const;
+export const PLUGIN_SOURCES = ["official", "community", "inhouse"] as const;
 export type PluginSource = (typeof PLUGIN_SOURCES)[number];
 
-export const PLUGIN_STATUSES = ['active', 'disabled'] as const;
+export const PLUGIN_STATUSES = ["active", "disabled"] as const;
 export type PluginStatus = (typeof PLUGIN_STATUSES)[number];
 
 export const PLUGIN_PERMISSIONS = [
-  'files.read',
-  'files.write',
-  'folders.read',
-  'folders.write',
-  'search.read',
-  'search.enhance',
-  'links.read',
-  'links.write',
-  'workspace.read',
-  'workspace.members.read',
-  'external.network',
-  'external.storage-service',
+  "files.read",
+  "files.write",
+  "folders.read",
+  "folders.write",
+  "search.read",
+  "search.enhance",
+  "links.read",
+  "links.write",
+  "workspace.read",
+  "workspace.members.read",
+  "external.network",
+  "external.storage-service",
 ] as const;
 export type PluginPermission = (typeof PLUGIN_PERMISSIONS)[number];
 
@@ -26,73 +26,81 @@ export const PLUGIN_PERMISSION_LABELS: Record<
   PluginPermission,
   { label: string; description: string }
 > = {
-  'files.read': {
-    label: 'Read Files',
-    description: 'Read file names, metadata, and content pointers in this workspace.',
+  "files.read": {
+    label: "Read Files",
+    description:
+      "Read file names, metadata, and content pointers in this workspace.",
   },
-  'files.write': {
-    label: 'Write Files',
-    description: 'Create, update, move, or delete files in this workspace.',
+  "files.write": {
+    label: "Write Files",
+    description: "Create, update, move, or delete files in this workspace.",
   },
-  'folders.read': {
-    label: 'Read Folders',
-    description: 'Read folder structure, metadata, and hierarchy in this workspace.',
+  "folders.read": {
+    label: "Read Folders",
+    description:
+      "Read folder structure, metadata, and hierarchy in this workspace.",
   },
-  'folders.write': {
-    label: 'Write Folders',
-    description: 'Create, rename, move, or delete folders in this workspace.',
+  "folders.write": {
+    label: "Write Folders",
+    description: "Create, rename, move, or delete folders in this workspace.",
   },
-  'search.read': {
-    label: 'Search Access',
-    description: 'Read searchable metadata to respond to discovery and search requests.',
+  "search.read": {
+    label: "Search Access",
+    description:
+      "Read searchable metadata to respond to discovery and search requests.",
   },
-  'search.enhance': {
-    label: 'Search Enhancement',
-    description: 'Re-rank or enrich native search results for better discovery.',
+  "search.enhance": {
+    label: "Search Enhancement",
+    description:
+      "Re-rank or enrich native search results for better discovery.",
   },
-  'links.read': {
-    label: 'Read Links',
-    description: 'Read share, tracked, and upload link metadata for this workspace.',
+  "links.read": {
+    label: "Read Links",
+    description:
+      "Read share, tracked, and upload link metadata for this workspace.",
   },
-  'links.write': {
-    label: 'Write Links',
-    description: 'Create or update share, tracked, and upload links for this workspace.',
+  "links.write": {
+    label: "Write Links",
+    description:
+      "Create or update share, tracked, and upload links for this workspace.",
   },
-  'workspace.read': {
-    label: 'Read Workspace',
-    description: 'Read workspace-level settings and metadata.',
+  "workspace.read": {
+    label: "Read Workspace",
+    description: "Read workspace-level settings and metadata.",
   },
-  'workspace.members.read': {
-    label: 'Read Members',
-    description: 'Read workspace member list and roles.',
+  "workspace.members.read": {
+    label: "Read Members",
+    description: "Read workspace member list and roles.",
   },
-  'external.network': {
-    label: 'Outbound Network',
-    description: 'Call external APIs and services on behalf of this workspace.',
+  "external.network": {
+    label: "Outbound Network",
+    description: "Call external APIs and services on behalf of this workspace.",
   },
-  'external.storage-service': {
-    label: 'External Storage Service',
-    description: 'Transfer files to and from external storage services (Google Drive, Dropbox, etc.).',
+  "external.storage-service": {
+    label: "External Storage Service",
+    description:
+      "Transfer files to and from external storage services (Google Drive, Dropbox, etc.).",
   },
 };
 
 export const PLUGIN_CAPABILITIES = [
-  'workspace_search',
-  'file_actions',
-  'folder_actions',
-  'import_export',
+  "workspace_search",
+  "file_actions",
+  "folder_actions",
+  "import_export",
+  "document_transcription",
 ] as const;
 export type PluginCapability = (typeof PLUGIN_CAPABILITIES)[number];
 
-export const PLUGIN_ACTION_TARGETS = ['file', 'folder', 'workspace'] as const;
+export const PLUGIN_ACTION_TARGETS = ["file", "folder", "workspace"] as const;
 export type PluginActionTarget = (typeof PLUGIN_ACTION_TARGETS)[number];
 
 export const PLUGIN_CONFIG_FIELD_TYPES = [
-  'text',
-  'url',
-  'number',
-  'boolean',
-  'secret',
+  "text",
+  "url",
+  "number",
+  "boolean",
+  "secret",
 ] as const;
 export type PluginConfigFieldType = (typeof PLUGIN_CONFIG_FIELD_TYPES)[number];
 
@@ -119,6 +127,11 @@ export const pluginConfigFieldSchema = z.object({
   placeholder: z.string().max(200).optional(),
 });
 
+export const pluginTranscriptionSchema = z.object({
+  supportedMimeTypes: z.array(z.string()).min(1),
+  priority: z.number().int().min(0).max(100).default(50),
+});
+
 export const pluginActionSchema = z.object({
   id: z
     .string()
@@ -142,18 +155,19 @@ export const pluginManifestSchema = z
       .max(80)
       .regex(
         /^[a-z0-9][a-z0-9-]*$/,
-        'Plugin slug must be lowercase letters, numbers, and hyphens',
+        "Plugin slug must be lowercase letters, numbers, and hyphens",
       ),
     name: z.string().min(1).max(120),
     description: z.string().min(1).max(1200),
     version: z.string().min(1).max(40),
     developer: z.string().min(1).max(120),
     homepageUrl: z.string().url().optional(),
-    source: pluginSourceSchema.default('community'),
+    source: pluginSourceSchema.default("community"),
     permissions: z.array(pluginPermissionSchema).min(1),
     capabilities: z.array(pluginCapabilitySchema).default([]),
     actions: z.array(pluginActionSchema).default([]),
     configFields: z.array(pluginConfigFieldSchema).default([]),
+    transcription: pluginTranscriptionSchema.optional(),
   })
   .superRefine((value, ctx) => {
     const permissionSet = new Set(value.permissions);
@@ -165,7 +179,7 @@ export const pluginManifestSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: `Duplicate permission "${permission}"`,
-        path: ['permissions'],
+        path: ["permissions"],
       });
     }
 
@@ -175,7 +189,7 @@ export const pluginManifestSchema = z
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: `Action "${action.id}" requires undeclared permission "${requiredPermission}"`,
-            path: ['actions'],
+            path: ["actions"],
           });
         }
       }
@@ -187,10 +201,22 @@ export const pluginManifestSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: `Duplicate config field "${field.key}"`,
-          path: ['configFields'],
+          path: ["configFields"],
         });
       }
       configKeys.add(field.key);
+    }
+
+    if (
+      value.transcription &&
+      !value.capabilities.includes("document_transcription")
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'Plugins with a "transcription" field must include the "document_transcription" capability',
+        path: ["transcription"],
+      });
     }
   });
 

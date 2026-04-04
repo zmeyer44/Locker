@@ -12,6 +12,7 @@ import { qmdClient, streamToString } from "../../plugins/handlers/qmd-client";
 import { ftsClient } from "../../plugins/handlers/fts-client";
 import { resolvePluginEndpoint } from "../../plugins/resolve-endpoint";
 import { invalidateWorkspaceVfsSnapshot } from "../../vfs/locker-vfs";
+import { isTextIndexable, transcribeFile } from "../../plugins/transcription";
 import {
   initiateUploadSchema,
   completeUploadSchema,
@@ -249,6 +250,20 @@ export const uploadsRouter = createRouter({
             );
           } catch {}
         })();
+      }
+
+      // Fire-and-forget: transcribe non-text files (images, PDFs, etc.)
+      if (!isTextIndexable(file.mimeType)) {
+        void transcribeFile({
+          db,
+          workspaceId,
+          userId: ctx.userId,
+          fileId: input.fileId,
+          fileName: file.name,
+          mimeType: file.mimeType,
+          storagePath: file.storagePath,
+          storageConfigId: file.storageConfigId,
+        }).catch(() => {});
       }
 
       invalidateWorkspaceVfsSnapshot(workspaceId);
