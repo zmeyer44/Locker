@@ -163,7 +163,7 @@ export async function search(params: {
   limit?: number;
 }): Promise<Array<{ fileId: string; score: number; snippet?: string }>> {
   const store = await getStore(params.workspaceId);
-  const results = await store.search(params.query);
+  const results = await store.search({ query: params.query });
 
   return results.slice(0, params.limit ?? 20).map((r) => ({
     fileId: r.path,
