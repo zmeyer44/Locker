@@ -5,38 +5,39 @@ import { Button } from "@/components/ui/button";
 import { FolderSvg } from "../_components/folder-svg";
 import Link from "next/link";
 import { GITHUB_URL } from "@/constants/app";
-import { ArrowRightIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  FolderIcon,
+  FileTextIcon,
+  ImageIcon,
+  FileIcon,
+  LinkIcon,
+  LockIcon,
+  ClockIcon,
+  DownloadIcon,
+  CheckCircleIcon,
+  HardDriveIcon,
+  ChevronRightIcon,
+} from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/*  Mini window chrome — lightweight card with dot header              */
+/*  Card shell — matches dashboard rounded-lg bordered cards           */
 /* ------------------------------------------------------------------ */
 
-function MiniWindow({
-  title,
+function Card({
   children,
   className,
 }: {
-  title?: string;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-lg border border-white/[0.08] bg-mkt-dark-secondary",
+        "overflow-hidden rounded-lg border border-white/[0.08] bg-mkt-dark-secondary shadow-lg shadow-black/10",
         className,
       )}
     >
-      <div className="flex items-center gap-1.5 border-b border-white/[0.06] px-3 py-2">
-        <span className="size-[7px] rounded-full bg-white/10" />
-        <span className="size-[7px] rounded-full bg-white/10" />
-        <span className="size-[7px] rounded-full bg-white/10" />
-        {title && (
-          <span className="ml-1.5 font-mono text-[9px] font-medium text-white/30">
-            {title}
-          </span>
-        )}
-      </div>
       {children}
     </div>
   );
@@ -48,61 +49,41 @@ function MiniWindow({
 
 const fileRows = [
   {
-    icon: "dir",
+    icon: FolderIcon,
     name: "Design Assets",
     size: "—",
     modified: "2 hours ago",
+    color: "text-primary",
   },
   {
-    icon: "dir",
+    icon: FolderIcon,
     name: "Client Deliverables",
     size: "—",
     modified: "Yesterday",
+    color: "text-primary",
   },
   {
-    icon: "pdf",
+    icon: FileTextIcon,
     name: "Q1-Report-Final.pdf",
     size: "4.2 MB",
     modified: "Mar 28",
+    color: "text-red-400",
   },
   {
-    icon: "img",
+    icon: ImageIcon,
     name: "hero-banner.png",
     size: "1.8 MB",
     modified: "Mar 26",
+    color: "text-emerald-400",
   },
   {
-    icon: "doc",
+    icon: FileIcon,
     name: "meeting-notes.md",
     size: "12 KB",
     modified: "Mar 25",
+    color: "text-blue-400",
   },
 ];
-
-function FileIcon({ type }: { type: string }) {
-  const colors: Record<string, string> = {
-    dir: "text-primary bg-primary/15",
-    pdf: "text-red-400 bg-red-400/15",
-    img: "text-emerald-400 bg-emerald-400/15",
-    doc: "text-blue-400 bg-blue-400/15",
-  };
-  const labels: Record<string, string> = {
-    dir: "D",
-    pdf: "P",
-    img: "I",
-    doc: "M",
-  };
-  return (
-    <span
-      className={cn(
-        "flex size-[18px] items-center justify-center rounded font-mono text-[8px] font-bold",
-        colors[type],
-      )}
-    >
-      {labels[type]}
-    </span>
-  );
-}
 
 function FloatingElements() {
   return (
@@ -113,7 +94,7 @@ function FloatingElements() {
           to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes heroSlideRight {
-          from { opacity: 0; transform: translateX(-14px); }
+          from { opacity: 0; transform: translateX(-10px); }
           to   { opacity: 1; transform: translateX(0); }
         }
         @keyframes heroProgress {
@@ -125,17 +106,12 @@ function FloatingElements() {
           0%, 100% { opacity: 1; }
           50%      { opacity: 0.3; }
         }
-        @keyframes heroCheckIn {
-          0%   { opacity: 0; transform: scale(0.5); }
-          60%  { opacity: 1; transform: scale(1.15); }
-          100% { opacity: 1; transform: scale(1); }
-        }
         @keyframes heroToast {
-          from { opacity: 0; transform: translateY(8px) translateX(8px); }
-          to   { opacity: 1; transform: translateY(0) translateX(0); }
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes heroTagReveal {
-          from { opacity: 0; transform: scale(0.92); }
+          from { opacity: 0; transform: scale(0.95); }
           to   { opacity: 1; transform: scale(1); }
         }
         .hero-card {
@@ -165,23 +141,20 @@ function FloatingElements() {
           className="hero-card absolute left-0 top-[10px] w-[300px]"
           style={{ animationDelay: "0.2s" }}
         >
-          <MiniWindow title="Files">
-            {/* Breadcrumb */}
-            <div className="border-b border-white/[0.06] px-3 py-1.5">
-              <div className="flex items-center gap-1 font-mono text-[9px]">
-                <span className="text-white/30">workspace</span>
-                <span className="text-white/20">/</span>
-                <span className="text-white/50">Projects</span>
-              </div>
+          <Card>
+            {/* Breadcrumb bar */}
+            <div className="flex items-center gap-1 border-b border-white/[0.06] px-4 py-2.5">
+              <span className="text-[10px] text-white/30">Workspace</span>
+              <ChevronRightIcon className="size-2.5 text-white/20" />
+              <span className="text-[10px] font-medium text-white/60">
+                Projects
+              </span>
             </div>
 
-            {/* Header row */}
-            <div className="grid grid-cols-[1.6fr_0.7fr_0.8fr] gap-2 border-b border-white/[0.06] bg-white/[0.02] px-3 py-1.5">
-              {["NAME", "SIZE", "MODIFIED"].map((h) => (
-                <div
-                  key={h}
-                  className="font-mono text-[7px] font-bold uppercase tracking-[0.08em] text-white/25"
-                >
+            {/* Column header */}
+            <div className="grid grid-cols-[1.6fr_0.7fr_0.8fr] gap-2 border-b border-white/[0.06] bg-white/[0.02] px-4 py-1.5">
+              {["Name", "Size", "Modified"].map((h) => (
+                <div key={h} className="text-[9px] font-medium text-white/25">
                   {h}
                 </div>
               ))}
@@ -191,24 +164,22 @@ function FloatingElements() {
             {fileRows.map((f, i) => (
               <div
                 key={f.name}
-                className="hero-slide grid grid-cols-[1.6fr_0.7fr_0.8fr] items-center gap-2 border-b border-white/[0.04] px-3 py-1.5 last:border-b-0"
+                className="hero-slide grid grid-cols-[1.6fr_0.7fr_0.8fr] items-center gap-2 border-b border-white/[0.04] px-4 py-2 last:border-b-0"
                 style={{ animationDelay: `${0.6 + i * 0.12}s` }}
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <FileIcon type={f.icon} />
-                  <span className="truncate font-mono text-[9px] font-medium text-white/70">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <f.icon className={cn("size-3.5 shrink-0", f.color)} />
+                  <span className="truncate text-[10px] font-medium text-white/70">
                     {f.name}
                   </span>
                 </div>
-                <span className="font-mono text-[8px] text-white/30 tabular-nums">
+                <span className="text-[9px] tabular-nums text-white/30">
                   {f.size}
                 </span>
-                <span className="font-mono text-[8px] text-white/30">
-                  {f.modified}
-                </span>
+                <span className="text-[9px] text-white/30">{f.modified}</span>
               </div>
             ))}
-          </MiniWindow>
+          </Card>
         </div>
 
         {/* ── Share Link card ── */}
@@ -216,38 +187,43 @@ function FloatingElements() {
           className="hero-card absolute left-[318px] top-[14px] w-[185px]"
           style={{ animationDelay: "0.9s" }}
         >
-          <MiniWindow title="Share">
-            <div className="p-3 space-y-2.5">
-              <div className="font-mono text-[8px] font-bold uppercase tracking-[0.08em] text-white/30">
-                Share Link
+          <Card>
+            <div className="p-3.5 space-y-3">
+              <div className="flex items-center gap-2">
+                <LinkIcon className="size-3.5 text-primary" />
+                <span className="text-[11px] font-semibold text-white/80">
+                  Share Link
+                </span>
               </div>
-              <div className="flex items-center gap-1.5 rounded border border-white/[0.08] bg-white/[0.03] px-2 py-1.5">
-                <span className="truncate font-mono text-[8px] text-primary/80">
+
+              <div className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1.5">
+                <span className="truncate text-[9px] text-primary/80">
                   lckr.sh/s/a8x2k
                 </span>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {[
-                  { label: "Password", value: "Enabled" },
-                  { label: "Expires", value: "7 days" },
-                  { label: "Downloads", value: "3 / 10" },
+                  { icon: LockIcon, label: "Password", value: "Enabled" },
+                  { icon: ClockIcon, label: "Expires", value: "7 days" },
+                  { icon: DownloadIcon, label: "Downloads", value: "3 / 10" },
                 ].map((row) => (
                   <div
                     key={row.label}
                     className="flex items-center justify-between"
                   >
-                    <span className="font-mono text-[8px] text-white/30">
+                    <span className="flex items-center gap-1.5 text-[9px] text-white/30">
+                      <row.icon className="size-2.5" />
                       {row.label}
                     </span>
-                    <span className="font-mono text-[8px] font-medium text-white/60">
+                    <span className="text-[9px] font-medium text-white/60">
                       {row.value}
                     </span>
                   </div>
                 ))}
               </div>
             </div>
-          </MiniWindow>
+          </Card>
         </div>
 
         {/* ── Upload Progress card ── */}
@@ -255,29 +231,27 @@ function FloatingElements() {
           className="hero-card absolute left-[40px] top-[280px] w-[260px]"
           style={{ animationDelay: "1.4s" }}
         >
-          <MiniWindow title="Upload">
-            <div className="p-3 space-y-2">
+          <Card>
+            <div className="p-3.5 space-y-2.5">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="truncate font-mono text-[10px] font-medium text-white/70">
+                  <div className="truncate text-[11px] font-medium text-white/70">
                     brand-guidelines-v2.pdf
                   </div>
-                  <div className="mt-0.5 font-mono text-[8px] text-white/30">
-                    18.4 MB &middot; PDF document
-                  </div>
+                  <div className="mt-0.5 text-[9px] text-white/30">18.4 MB</div>
                 </div>
-                <span className="inline-flex shrink-0 items-center gap-[3px] border border-emerald-400/50 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase tracking-[0.04em] text-emerald-400">
-                  <span
-                    className="size-[4px] bg-emerald-400"
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[9px] font-medium text-emerald-400">
+                  <CheckCircleIcon
+                    className="size-2.5"
                     style={{
                       animation: "heroPulse 1.2s ease-in-out 3",
                       animationDelay: "2s",
                     }}
                   />
-                  DONE
+                  Done
                 </span>
               </div>
-              <div className="h-[3px] overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
                 <div
                   className="h-full rounded-full bg-emerald-400"
                   style={{
@@ -289,37 +263,40 @@ function FloatingElements() {
                 />
               </div>
             </div>
-          </MiniWindow>
+          </Card>
         </div>
 
-        {/* ── Storage Usage toast ── */}
+        {/* ── Storage Usage card ── */}
         <div
-          className="hero-toast absolute left-[318px] top-[270px] w-[185px] overflow-hidden rounded-lg border border-white/[0.08] bg-mkt-dark-secondary"
+          className="hero-toast absolute left-[318px] top-[270px] w-[185px]"
           style={{ animationDelay: "2.2s" }}
         >
-          <div className="p-3 space-y-2">
-            <div className="font-mono text-[8px] font-bold uppercase tracking-[0.08em] text-white/30">
-              Storage
+          <Card>
+            <div className="p-3.5 space-y-2.5">
+              <div className="flex items-center gap-2">
+                <HardDriveIcon className="size-3.5 text-primary" />
+                <span className="text-[11px] font-semibold text-white/80">
+                  Storage
+                </span>
+              </div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[20px] font-semibold tracking-tight text-white/90">
+                  24.6
+                </span>
+                <span className="text-[10px] text-white/30">/ 50 GB</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: "49%" }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[9px] text-white/25">
+                <span>AWS S3</span>
+                <span>49% used</span>
+              </div>
             </div>
-            <div className="flex items-baseline gap-1">
-              <span className="font-mono text-[20px] font-bold tracking-tight text-white/90">
-                24.6
-              </span>
-              <span className="font-mono text-[9px] text-white/30">
-                / 50 GB
-              </span>
-            </div>
-            <div className="h-[3px] overflow-hidden rounded-full bg-white/[0.06]">
-              <div
-                className="h-full rounded-full bg-primary"
-                style={{ width: "49%" }}
-              />
-            </div>
-            <div className="flex items-center justify-between font-mono text-[7px] text-white/25">
-              <span>S3 &middot; us-east-1</span>
-              <span>49% used</span>
-            </div>
-          </div>
+          </Card>
         </div>
 
         {/* ── Terminal card ── */}
@@ -327,87 +304,42 @@ function FloatingElements() {
           className="hero-card absolute left-[20px] top-[400px] w-[340px]"
           style={{ animationDelay: "2.0s" }}
         >
-          <MiniWindow title="Terminal">
-            <div className="p-3 space-y-1">
+          <Card>
+            <div className="flex items-center gap-1.5 border-b border-white/[0.06] px-4 py-2.5">
+              <div className="size-[7px] rounded-full bg-white/10" />
+              <div className="size-[7px] rounded-full bg-white/10" />
+              <div className="size-[7px] rounded-full bg-white/10" />
+              <span className="ml-1 text-[9px] font-medium text-white/30">
+                Terminal
+              </span>
+            </div>
+            <div className="p-3.5 font-mono space-y-1">
               <div className="flex items-center gap-1.5">
-                <span className="font-mono text-[8px] font-bold text-primary">
-                  $
-                </span>
-                <span className="font-mono text-[9px] text-white/60">
-                  ls Projects/
-                </span>
+                <span className="text-[9px] font-semibold text-primary">$</span>
+                <span className="text-[10px] text-white/60">ls Projects/</span>
               </div>
-              <div className="font-mono text-[8px] leading-relaxed text-white/35 pl-3">
+              <div className="pl-3 text-[9px] leading-relaxed text-white/35">
                 Design Assets/&nbsp;&nbsp;Client Deliverables/
                 <br />
                 Q1-Report-Final.pdf&nbsp;&nbsp;hero-banner.png
                 <br />
                 meeting-notes.md
               </div>
-              <div className="mt-1 flex items-center gap-1.5">
-                <span className="font-mono text-[8px] font-bold text-primary">
-                  $
-                </span>
-                <span className="font-mono text-[9px] text-white/60">
+              <div className="mt-1.5 flex items-center gap-1.5">
+                <span className="text-[9px] font-semibold text-primary">$</span>
+                <span className="text-[10px] text-white/60">
                   cat meeting-notes.md | head -3
                 </span>
               </div>
-              <div className="font-mono text-[8px] leading-relaxed text-white/35 pl-3">
+              <div className="pl-3 text-[9px] leading-relaxed text-white/35">
                 # Team Sync — March 25
                 <br />
                 - Finalize Q1 deliverables
                 <br />- Review storage migration plan
               </div>
             </div>
-          </MiniWindow>
+          </Card>
         </div>
-
-        {/* ── Provider tags ── */}
-        <div className="absolute left-[10px] top-[375px] flex items-center gap-1.5">
-          {[
-            { prefix: "ENV", label: "s3" },
-            { prefix: "RGN", label: "us-east-1" },
-            { prefix: "BKT", label: "locker-prod" },
-          ].map((t, i) => (
-            <div key={t.prefix} className="flex items-center gap-1.5">
-              <span
-                className="hero-tag inline-flex items-center gap-1 border border-white/[0.08] bg-mkt-dark-secondary px-1.5 py-0.5 font-mono text-[7px]"
-                style={{ animationDelay: `${2.6 + i * 0.12}s` }}
-              >
-                <span className="font-bold text-primary">{t.prefix}</span>
-                <span className="text-white/40">{t.label}</span>
-              </span>
-              {i < 2 && (
-                <span
-                  className="hero-tag font-mono text-[9px] text-white/15"
-                  style={{ animationDelay: `${2.66 + i * 0.12}s` }}
-                >
-                  &rarr;
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* ── Decorative crosses ── */}
-        {[
-          { pos: "top-[60px] left-[270px]", delay: "0.4s" },
-          { pos: "top-[250px] left-[480px]", delay: "1.0s" },
-          { pos: "top-[520px] left-[380px]", delay: "1.8s" },
-          { pos: "top-[30px] left-[150px]", delay: "0.6s" },
-          { pos: "top-[350px] left-[0px]", delay: "2.2s" },
-        ].map((d, i) => (
-          <span
-            key={i}
-            className={cn(
-              "hero-tag pointer-events-none absolute select-none text-[14px] font-light text-white/[0.08]",
-              d.pos,
-            )}
-            style={{ animationDelay: d.delay }}
-          >
-            +
-          </span>
-        ))}
 
         {/* ── Decorative dots ── */}
         {[
