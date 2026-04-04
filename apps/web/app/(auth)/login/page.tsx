@@ -35,7 +35,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
+
       <div className="w-full max-w-sm">
         <div className="rounded-lg border bg-card p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-6">
@@ -84,6 +84,6 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
-    </div>
+  
   );
 }
