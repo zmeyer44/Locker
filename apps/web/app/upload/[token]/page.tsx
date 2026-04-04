@@ -9,7 +9,6 @@ import {
   CheckCircle,
   Loader2,
   X,
-  HardDrive,
 } from "lucide-react";
 import { Logo } from "@/assets/logo";
 import { trpc } from "@/lib/trpc/client";
@@ -189,7 +188,7 @@ export default function PublicUploadPage({
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <div className="w-full max-w-md rounded-lg border bg-card p-6">
         <div className="flex items-center gap-2 mb-6">
-          <HardDrive className="size-5 text-primary" />
+          <Logo className="size-5 text-primary" />
           <span className="title text-base">Locker</span>
           <span className="text-xs font-medium text-muted-foreground px-1.5 py-0.5 bg-primary/5 text-primary rounded-sm ml-auto">
             Upload
