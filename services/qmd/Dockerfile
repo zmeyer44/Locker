@@ -12,7 +12,7 @@ RUN corepack enable
 
 COPY package.json pnpm-lock.yaml* ./
 RUN pnpm install --frozen-lockfile --ignore-scripts=false || pnpm install --ignore-scripts=false
-RUN pnpm rebuild better-sqlite3 --ignore-scripts=false \
+RUN pnpm rebuild better-sqlite3 \
   && node -e "require('better-sqlite3'); console.log('better-sqlite3 native binding loaded')"
 
 COPY . .
