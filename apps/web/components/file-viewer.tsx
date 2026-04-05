@@ -24,12 +24,6 @@ import { FileIcon } from "@/components/file-icon";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { RenameDialog } from "@/components/rename-dialog";
 import { ShareDialog } from "@/components/share-dialog";
 import { CreateTrackedLinkDialog } from "@/components/create-tracked-link-dialog";
@@ -342,7 +336,7 @@ export function FileViewer({ fileId }: { fileId: string }) {
   const friendlyType = getFriendlyTypeName(file.mimeType, file.name);
 
   return (
-    <div>
+    <div className="h-full relative">
       {/* Header */}
       <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-b bg-background">
         <div className="flex flex-1 items-center gap-2 px-4 min-w-0">
@@ -376,10 +370,10 @@ export function FileViewer({ fileId }: { fileId: string }) {
       </header>
 
       {/* Content */}
-      <div className="p-6">
-        <div className="flex flex-col lg:flex-row gap-6">
+      <div className="absolute inset-0 top-14 p-6">
+        <div className="flex flex-col lg:flex-row gap-6 h-full">
           {/* Preview area */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 flex flex-col items-stretch [&>div]:h-full">
             <PreviewArea
               viewerType={viewerType}
               previewUrl={previewUrl}
@@ -701,7 +695,7 @@ function ImagePreview({ url, name }: { url: string | null; name: string }) {
       <img
         src={url}
         alt={name}
-        className="max-w-full max-h-[75vh] object-contain rounded"
+        className="max-w-full max-h-full object-contain rounded"
       />
     </div>
   );
@@ -752,7 +746,7 @@ function AudioPreview({
 function PdfPreview({ url }: { url: string | null; name: string }) {
   if (!url) return null;
   return (
-    <div style={{ height: "75vh" }}>
+    <div style={{ height: "100%" }}>
       <PDFViewer url={url} showThumbnails={false} />
     </div>
   );
@@ -783,54 +777,53 @@ function MarkdownPreview({
   return (
     <div className="rounded-lg border bg-card overflow-hidden flex flex-col">
       {/* Toolbar — mirrors pdf-viewer style */}
-      <TooltipProvider>
-        <div
-          className={cn(
-            "flex items-center justify-between px-3 py-1.5",
-            "border-b bg-background/95 backdrop-blur-sm",
-            "supports-[backdrop-filter]:bg-background/80",
-            "shrink-0 z-10",
-          )}
-        >
-          <span className="text-xs text-muted-foreground font-mono truncate">
-            {name}
+
+      <div
+        className={cn(
+          "rounded-t-lg flex items-center justify-between px-3 py-1.5",
+          "border-b bg-background/95 backdrop-blur-sm",
+          "supports-[backdrop-filter]:bg-background/80",
+          "shrink-0 z-10",
+        )}
+      >
+        <span className="text-xs text-muted-foreground font-mono truncate">
+          {name}
+        </span>
+
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {lines.length} {lines.length === 1 ? "line" : "lines"}
           </span>
 
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {lines.length} {lines.length === 1 ? "line" : "lines"}
-            </span>
-
-            <div className="flex items-center rounded-full border bg-muted/50 p-0.5">
-              <button
-                onClick={() => setMode("rendered")}
-                className={cn(
-                  "relative flex items-center justify-center size-7 rounded-full transition-all duration-200",
-                  mode === "rendered"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Eye className="size-3.5" />
-              </button>
-              <button
-                onClick={() => setMode("source")}
-                className={cn(
-                  "relative flex items-center justify-center size-7 rounded-full transition-all duration-200",
-                  mode === "source"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Code className="size-3.5" />
-              </button>
-            </div>
+          <div className="flex items-center rounded-full border bg-muted/50 p-0.5">
+            <button
+              onClick={() => setMode("rendered")}
+              className={cn(
+                "relative flex items-center justify-center size-7 rounded-full transition-all duration-200",
+                mode === "rendered"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Eye className="size-3.5" />
+            </button>
+            <button
+              onClick={() => setMode("source")}
+              className={cn(
+                "relative flex items-center justify-center size-7 rounded-full transition-all duration-200",
+                mode === "source"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Code className="size-3.5" />
+            </button>
           </div>
         </div>
-      </TooltipProvider>
+      </div>
 
       {/* Content */}
-      <div className="overflow-auto max-h-[72vh]">
+      <div className="overflow-auto max-h-full">
         {mode === "rendered" ? (
           <div className="p-6 md:px-10 md:py-8 prose prose-sm dark:prose-invert max-w-none prose-headings:font-semibold prose-a:text-primary prose-code:before:content-none prose-code:after:content-none prose-code:rounded prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:text-[0.85em] prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-img:rounded-lg">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
@@ -886,7 +879,7 @@ function TextPreview({
           {lines.length} {lines.length === 1 ? "line" : "lines"}
         </span>
       </div>
-      <div className="overflow-auto max-h-[72vh]">
+      <div className="overflow-auto max-h-full">
         <pre className="text-sm font-mono leading-6">
           {lines.map((line, i) => (
             <div key={i} className="flex hover:bg-muted/30 transition-colors">

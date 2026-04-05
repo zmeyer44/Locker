@@ -16,7 +16,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
@@ -354,114 +353,108 @@ function PDFToolbar({
   const zoomPercentage = Math.round(scale * 100);
 
   return (
-    <TooltipProvider>
-      <div
-        className={cn(
-          "flex items-center justify-between px-3 py-1.5",
-          "border-b bg-background/95 backdrop-blur-sm",
-          "supports-[backdrop-filter]:bg-background/80",
-          "shrink-0 z-10",
-        )}
-      >
-        {/* Left — Thumbnail toggle */}
-        <div className="flex items-center">
-          <ToolbarButton
-            icon={<PanelLeft className="size-4" />}
-            tooltip={showThumbnails ? "Hide pages" : "Show pages"}
-            onClick={onToggleThumbnails}
-            active={showThumbnails}
-          />
-        </div>
-
-        {/* Center — Page navigation */}
-        <div className="flex items-center gap-1">
-          <ToolbarButton
-            icon={<ChevronLeft className="size-4" />}
-            tooltip="Previous page"
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage <= 1 || isLoading}
-          />
-
-          <form
-            onSubmit={handlePageInputSubmit}
-            className="flex items-center gap-1.5"
-          >
-            <input
-              type="text"
-              value={pageInput}
-              onChange={(e) => setPageInput(e.target.value)}
-              onBlur={handlePageInputSubmit}
-              className={cn(
-                "w-10 h-7 text-center text-sm tabular-nums rounded-md",
-                "border border-border bg-background",
-                "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
-                "transition-shadow",
-              )}
-              disabled={isLoading}
-            />
-            <span className="text-sm text-muted-foreground">/</span>
-            <span className="text-sm tabular-nums text-muted-foreground min-w-[2ch]">
-              {totalPages}
-            </span>
-          </form>
-
-          <ToolbarButton
-            icon={<ChevronRight className="size-4" />}
-            tooltip="Next page"
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage >= totalPages || isLoading}
-          />
-        </div>
-
-        {/* Right — Zoom controls */}
-        <div className="flex items-center gap-1">
-          <ToolbarButton
-            icon={<Minus className="size-4" />}
-            tooltip="Zoom out"
-            onClick={() =>
-              onScaleChange(Math.max(MIN_SCALE, scale - SCALE_STEP))
-            }
-            disabled={scale <= MIN_SCALE || isLoading}
-          />
-
-          <div
-            className={cn(
-              "flex items-center justify-center",
-              "min-w-[52px] h-7 px-2",
-              "text-sm tabular-nums text-muted-foreground",
-              "rounded-md bg-muted/50",
-            )}
-          >
-            {zoomPercentage}%
-          </div>
-
-          <ToolbarButton
-            icon={<Plus className="size-4" />}
-            tooltip="Zoom in"
-            onClick={() =>
-              onScaleChange(Math.min(MAX_SCALE, scale + SCALE_STEP))
-            }
-            disabled={scale >= MAX_SCALE || isLoading}
-          />
-
-          <div className="w-px h-5 bg-border mx-1" />
-
-          <ToolbarButton
-            icon={<Maximize className="size-4" />}
-            tooltip="Fit to width"
-            onClick={onFitWidth}
-            disabled={isLoading}
-          />
-
-          <ToolbarButton
-            icon={<Expand className="size-4" />}
-            tooltip="Fit to page"
-            onClick={onFitPage}
-            disabled={isLoading}
-          />
-        </div>
+    <div
+      className={cn(
+        "flex items-center justify-between px-3 py-1.5",
+        "border-b bg-background/95 backdrop-blur-sm",
+        "supports-[backdrop-filter]:bg-background/80",
+        "shrink-0 z-10",
+      )}
+    >
+      {/* Left — Thumbnail toggle */}
+      <div className="flex items-center">
+        <ToolbarButton
+          icon={<PanelLeft className="size-4" />}
+          tooltip={showThumbnails ? "Hide pages" : "Show pages"}
+          onClick={onToggleThumbnails}
+          active={showThumbnails}
+        />
       </div>
-    </TooltipProvider>
+
+      {/* Center — Page navigation */}
+      <div className="flex items-center gap-1">
+        <ToolbarButton
+          icon={<ChevronLeft className="size-4" />}
+          tooltip="Previous page"
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage <= 1 || isLoading}
+        />
+
+        <form
+          onSubmit={handlePageInputSubmit}
+          className="flex items-center gap-1.5"
+        >
+          <input
+            type="text"
+            value={pageInput}
+            onChange={(e) => setPageInput(e.target.value)}
+            onBlur={handlePageInputSubmit}
+            className={cn(
+              "w-10 h-7 text-center text-sm tabular-nums rounded-md",
+              "border border-border bg-background",
+              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
+              "transition-shadow",
+            )}
+            disabled={isLoading}
+          />
+          <span className="text-sm text-muted-foreground">/</span>
+          <span className="text-sm tabular-nums text-muted-foreground min-w-[2ch]">
+            {totalPages}
+          </span>
+        </form>
+
+        <ToolbarButton
+          icon={<ChevronRight className="size-4" />}
+          tooltip="Next page"
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage >= totalPages || isLoading}
+        />
+      </div>
+
+      {/* Right — Zoom controls */}
+      <div className="flex items-center gap-1">
+        <ToolbarButton
+          icon={<Minus className="size-4" />}
+          tooltip="Zoom out"
+          onClick={() => onScaleChange(Math.max(MIN_SCALE, scale - SCALE_STEP))}
+          disabled={scale <= MIN_SCALE || isLoading}
+        />
+
+        <div
+          className={cn(
+            "flex items-center justify-center",
+            "min-w-[52px] h-7 px-2",
+            "text-sm tabular-nums text-muted-foreground",
+            "rounded-md bg-muted/50",
+          )}
+        >
+          {zoomPercentage}%
+        </div>
+
+        <ToolbarButton
+          icon={<Plus className="size-4" />}
+          tooltip="Zoom in"
+          onClick={() => onScaleChange(Math.min(MAX_SCALE, scale + SCALE_STEP))}
+          disabled={scale >= MAX_SCALE || isLoading}
+        />
+
+        <div className="w-px h-5 bg-border mx-1" />
+
+        <ToolbarButton
+          icon={<Maximize className="size-4" />}
+          tooltip="Fit to width"
+          onClick={onFitWidth}
+          disabled={isLoading}
+        />
+
+        <ToolbarButton
+          icon={<Expand className="size-4" />}
+          tooltip="Fit to page"
+          onClick={onFitPage}
+          disabled={isLoading}
+        />
+      </div>
+    </div>
   );
 }
 
