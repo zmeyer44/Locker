@@ -3,7 +3,9 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Code,
   Download,
+  Eye,
   Share2,
   BarChart3,
   Pencil,
@@ -14,12 +16,20 @@ import {
   FileText,
   Loader2,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { trpc } from "@/lib/trpc/client";
-import { formatBytes, formatDate, getFileExtension } from "@/lib/utils";
+import { cn, formatBytes, formatDate, getFileExtension } from "@/lib/utils";
 import { FileIcon } from "@/components/file-icon";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { RenameDialog } from "@/components/rename-dialog";
 import { ShareDialog } from "@/components/share-dialog";
 import { CreateTrackedLinkDialog } from "@/components/create-tracked-link-dialog";
@@ -33,7 +43,14 @@ import { PDFViewer } from "@/components/pdf-viewer";
 /*  Viewer type detection                                              */
 /* ------------------------------------------------------------------ */
 
-type ViewerType = "image" | "video" | "audio" | "pdf" | "text" | "unsupported";
+type ViewerType =
+  | "image"
+  | "video"
+  | "audio"
+  | "pdf"
+  | "markdown"
+  | "text"
+  | "unsupported";
 
 const CODE_EXTENSIONS = new Set([
   "ts",
@@ -90,8 +107,10 @@ function getViewerType(mimeType: string, name: string): ViewerType {
   if (mimeType.startsWith("video/")) return "video";
   if (mimeType.startsWith("audio/")) return "audio";
   if (mimeType === "application/pdf") return "pdf";
-  if (mimeType.startsWith("text/") || isTextIndexable(mimeType)) return "text";
   const ext = getFileExtension(name);
+  if (ext === "md" || ext === "mdx" || mimeType === "text/markdown")
+    return "markdown";
+  if (mimeType.startsWith("text/") || isTextIndexable(mimeType)) return "text";
   if (CODE_EXTENSIONS.has(ext)) return "text";
   return "unsupported";
 }
@@ -212,7 +231,7 @@ export function FileViewer({ fileId }: { fileId: string }) {
         setPreviewUrl(result.url);
 
         const vt = getViewerType(file.mimeType, file.name);
-        if (vt === "text") {
+        if (vt === "text" || vt === "markdown") {
           fetch(result.url)
             .then((r) => r.text())
             .then((text) => {
@@ -656,6 +675,8 @@ function PreviewArea({
       return <AudioPreview url={previewUrl} file={file} />;
     case "pdf":
       return <PdfPreview url={previewUrl} name={file.name} />;
+    case "markdown":
+      return <MarkdownPreview content={textContent} name={file.name} />;
     case "text":
       return <TextPreview content={textContent} name={file.name} />;
     case "unsupported":
@@ -737,7 +758,106 @@ function PdfPreview({ url }: { url: string | null; name: string }) {
   );
 }
 
-/* ---- Text / Code / Markdown ---- */
+/* ---- Markdown ---- */
+
+function MarkdownPreview({
+  content,
+  name,
+}: {
+  content: string | null;
+  name: string;
+}) {
+  const [mode, setMode] = useState<"rendered" | "source">("rendered");
+  const text = content ?? "";
+  const lines = text.split("\n");
+  const gutterWidth = `${String(lines.length).length + 1}ch`;
+
+  if (!text) {
+    return (
+      <div className="rounded-lg border bg-muted/30 flex items-center justify-center min-h-[40vh]">
+        <p className="text-sm text-muted-foreground">Empty file</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border bg-card overflow-hidden flex flex-col">
+      {/* Toolbar — mirrors pdf-viewer style */}
+      <TooltipProvider>
+        <div
+          className={cn(
+            "flex items-center justify-between px-3 py-1.5",
+            "border-b bg-background/95 backdrop-blur-sm",
+            "supports-[backdrop-filter]:bg-background/80",
+            "shrink-0 z-10",
+          )}
+        >
+          <span className="text-xs text-muted-foreground font-mono truncate">
+            {name}
+          </span>
+
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {lines.length} {lines.length === 1 ? "line" : "lines"}
+            </span>
+
+            <div className="flex items-center rounded-full border bg-muted/50 p-0.5">
+              <button
+                onClick={() => setMode("rendered")}
+                className={cn(
+                  "relative flex items-center justify-center size-7 rounded-full transition-all duration-200",
+                  mode === "rendered"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Eye className="size-3.5" />
+              </button>
+              <button
+                onClick={() => setMode("source")}
+                className={cn(
+                  "relative flex items-center justify-center size-7 rounded-full transition-all duration-200",
+                  mode === "source"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Code className="size-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </TooltipProvider>
+
+      {/* Content */}
+      <div className="overflow-auto max-h-[72vh]">
+        {mode === "rendered" ? (
+          <div className="p-6 md:px-10 md:py-8 prose prose-sm dark:prose-invert max-w-none prose-headings:font-semibold prose-a:text-primary prose-code:before:content-none prose-code:after:content-none prose-code:rounded prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:text-[0.85em] prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-img:rounded-lg">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+          </div>
+        ) : (
+          <pre className="text-sm font-mono leading-6">
+            {lines.map((line, i) => (
+              <div key={i} className="flex hover:bg-muted/30 transition-colors">
+                <span
+                  className="text-muted-foreground/40 select-none text-right px-3 shrink-0 border-r border-border/50"
+                  style={{ minWidth: gutterWidth }}
+                >
+                  {i + 1}
+                </span>
+                <span className="px-4 whitespace-pre-wrap break-all flex-1">
+                  {line || " "}
+                </span>
+              </div>
+            ))}
+          </pre>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---- Text / Code ---- */
 
 function TextPreview({
   content,
