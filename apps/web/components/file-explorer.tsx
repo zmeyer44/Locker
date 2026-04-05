@@ -126,7 +126,7 @@ export function FileExplorer({ folderId }: { folderId: string | null }) {
   const { data: transcriptionStatuses = {} } =
     trpc.transcriptions.statusByFileIds.useQuery(
       { fileIds },
-      { enabled: fileIds.length > 0 },
+      { enabled: fileIds.length > 0, retry: false },
     );
   const generateTranscription = trpc.transcriptions.generate.useMutation({
     onSuccess: (result) => {

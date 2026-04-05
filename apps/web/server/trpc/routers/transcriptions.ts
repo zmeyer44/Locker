@@ -16,28 +16,32 @@ export const transcriptionsRouter = createRouter({
   getByFileId: workspaceProcedure
     .input(z.object({ fileId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const [row] = await ctx.db
-        .select({
-          id: fileTranscriptions.id,
-          fileId: fileTranscriptions.fileId,
-          pluginSlug: fileTranscriptions.pluginSlug,
-          content: fileTranscriptions.content,
-          status: fileTranscriptions.status,
-          errorMessage: fileTranscriptions.errorMessage,
-          createdAt: fileTranscriptions.createdAt,
-          updatedAt: fileTranscriptions.updatedAt,
-        })
-        .from(fileTranscriptions)
-        .where(
-          and(
-            eq(fileTranscriptions.fileId, input.fileId),
-            eq(fileTranscriptions.workspaceId, ctx.workspaceId),
-          ),
-        )
-        .orderBy(desc(fileTranscriptions.updatedAt))
-        .limit(1);
+      try {
+        const [row] = await ctx.db
+          .select({
+            id: fileTranscriptions.id,
+            fileId: fileTranscriptions.fileId,
+            pluginSlug: fileTranscriptions.pluginSlug,
+            content: fileTranscriptions.content,
+            status: fileTranscriptions.status,
+            errorMessage: fileTranscriptions.errorMessage,
+            createdAt: fileTranscriptions.createdAt,
+            updatedAt: fileTranscriptions.updatedAt,
+          })
+          .from(fileTranscriptions)
+          .where(
+            and(
+              eq(fileTranscriptions.fileId, input.fileId),
+              eq(fileTranscriptions.workspaceId, ctx.workspaceId),
+            ),
+          )
+          .orderBy(desc(fileTranscriptions.updatedAt))
+          .limit(1);
 
-      return row ?? null;
+        return row ?? null;
+      } catch {
+        return null;
+      }
     }),
 
   /** Batch query transcription status for multiple files. */
@@ -46,29 +50,34 @@ export const transcriptionsRouter = createRouter({
     .query(async ({ ctx, input }) => {
       if (input.fileIds.length === 0) return {};
 
-      const rows = await ctx.db
-        .select({
-          fileId: fileTranscriptions.fileId,
-          status: fileTranscriptions.status,
-          updatedAt: fileTranscriptions.updatedAt,
-        })
-        .from(fileTranscriptions)
-        .where(
-          and(
-            inArray(fileTranscriptions.fileId, input.fileIds),
-            eq(fileTranscriptions.workspaceId, ctx.workspaceId),
-          ),
-        )
-        .orderBy(desc(fileTranscriptions.updatedAt));
+      try {
+        const rows = await ctx.db
+          .select({
+            fileId: fileTranscriptions.fileId,
+            status: fileTranscriptions.status,
+            updatedAt: fileTranscriptions.updatedAt,
+          })
+          .from(fileTranscriptions)
+          .where(
+            and(
+              inArray(fileTranscriptions.fileId, input.fileIds),
+              eq(fileTranscriptions.workspaceId, ctx.workspaceId),
+            ),
+          )
+          .orderBy(desc(fileTranscriptions.updatedAt));
 
-      // Keep only the most recently updated transcription per file
-      const result: Record<string, string> = {};
-      for (const row of rows) {
-        if (!(row.fileId in result)) {
-          result[row.fileId] = row.status;
+        // Keep only the most recently updated transcription per file
+        const result: Record<string, string> = {};
+        for (const row of rows) {
+          if (!(row.fileId in result)) {
+            result[row.fileId] = row.status;
+          }
         }
+        return result;
+      } catch {
+        // Table may not exist if migration 0009 hasn't been applied yet
+        return {};
       }
-      return result;
     }),
 
   /** Manually trigger transcription for a file. */
