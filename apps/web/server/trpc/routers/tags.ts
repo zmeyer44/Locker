@@ -92,7 +92,8 @@ export const tagsRouter = createRouter({
   setFileTags: workspaceProcedure
     .input(setFileTagsSchema)
     .mutation(async ({ ctx, input }) => {
-      const { fileId, tagIds } = input;
+      const { fileId } = input;
+      const tagIds = [...new Set(input.tagIds)];
 
       // Verify file belongs to workspace
       const [file] = await ctx.db
@@ -165,10 +166,11 @@ export const tagsRouter = createRouter({
         })
         .from(fileTags)
         .innerJoin(tags, eq(fileTags.tagId, tags.id))
+        .innerJoin(files, eq(fileTags.fileId, files.id))
         .where(
           and(
             eq(fileTags.fileId, input.fileId),
-            eq(tags.workspaceId, ctx.workspaceId),
+            eq(files.workspaceId, ctx.workspaceId),
           ),
         )
         .orderBy(asc(tags.name));
@@ -188,10 +190,11 @@ export const tagsRouter = createRouter({
         })
         .from(fileTags)
         .innerJoin(tags, eq(fileTags.tagId, tags.id))
+        .innerJoin(files, eq(fileTags.fileId, files.id))
         .where(
           and(
             inArray(fileTags.fileId, input.fileIds),
-            eq(tags.workspaceId, ctx.workspaceId),
+            eq(files.workspaceId, ctx.workspaceId),
           ),
         )
         .orderBy(asc(tags.name));
