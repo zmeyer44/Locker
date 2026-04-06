@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import {
@@ -434,7 +435,7 @@ export function FileExplorer({ folderId }: { folderId: string | null }) {
                 onClick={() =>
                   router.push(`/w/${workspace.slug}/folder/${folder.id}`)
                 }
-                className={`${ROW_GRID} hover:bg-muted/50 cursor-pointer group transition-colors`}
+                className={cn(ROW_GRID, "hover:bg-muted/50 cursor-pointer group transition-colors")}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <FileIcon
@@ -539,7 +540,7 @@ export function FileExplorer({ folderId }: { folderId: string | null }) {
                 onClick={() =>
                   router.push(`/w/${workspace.slug}/file/${file.id}`)
                 }
-                className={`${ROW_GRID} hover:bg-muted/50 cursor-pointer group transition-colors`}
+                className={cn(ROW_GRID, "hover:bg-muted/50 cursor-pointer group transition-colors")}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <FileIcon

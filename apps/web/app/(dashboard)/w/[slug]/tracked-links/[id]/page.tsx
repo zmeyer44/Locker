@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, use } from 'react';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -464,11 +465,12 @@ export default function TrackedLinkDetailPage({
                           </td>
                           <td className="px-4 py-2.5">
                             <span
-                              className={`text-xs font-mono uppercase px-1.5 py-0.5 rounded-sm ${
+                              className={cn(
+                                "text-xs font-mono uppercase px-1.5 py-0.5 rounded-sm",
                                 event.eventType === 'download'
                                   ? 'bg-blue-500/10 text-blue-500'
-                                  : 'bg-green-500/10 text-green-500'
-                              }`}
+                                  : 'bg-green-500/10 text-green-500',
+                              )}
                             >
                               {event.eventType}
                             </span>

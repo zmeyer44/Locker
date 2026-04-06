@@ -1,4 +1,4 @@
-import { FileViewer } from "@/components/file-viewer";
+import { FileViewer } from "@/features/files/file-viewer";
 
 export default async function FilePage({
   params,

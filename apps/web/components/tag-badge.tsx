@@ -1,3 +1,5 @@
+import { cn } from "@/lib/utils";
+
 export function TagBadge({
   name,
   color,
@@ -7,20 +9,16 @@ export function TagBadge({
   color?: string | null;
   className?: string;
 }) {
-  if (color) {
-    return (
-      <span
-        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${className ?? ""}`}
-        style={{ backgroundColor: `${color}20`, color }}
-      >
-        {name}
-      </span>
-    );
-  }
-
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-muted text-muted-foreground ${className ?? ""}`}
+      className={cn(
+        "inline-block max-w-full rounded-full px-2 py-0.5 text-xs font-medium leading-5 truncate",
+        !color && "bg-muted text-muted-foreground",
+        className,
+      )}
+      style={
+        color ? { backgroundColor: `${color}20`, color } : undefined
+      }
     >
       {name}
     </span>
