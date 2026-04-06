@@ -5,6 +5,7 @@ import { Code, Eye } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
+import { ToggleSwitch } from "@/components/toggle-switch";
 
 export function MarkdownPreview({
   content,
@@ -46,31 +47,20 @@ export function MarkdownPreview({
           <span className="text-xs text-muted-foreground tabular-nums">
             {lines.length} {lines.length === 1 ? "line" : "lines"}
           </span>
-
-          <div className="flex items-center rounded-full border bg-muted/50 p-0.5">
-            <button
-              onClick={() => setMode("rendered")}
-              className={cn(
-                "relative flex items-center justify-center size-7 rounded-full transition-all duration-200",
-                mode === "rendered"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Eye className="size-3.5" />
-            </button>
-            <button
-              onClick={() => setMode("source")}
-              className={cn(
-                "relative flex items-center justify-center size-7 rounded-full transition-all duration-200",
-                mode === "source"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Code className="size-3.5" />
-            </button>
-          </div>
+          <ToggleSwitch
+            onChange={(v) => setMode(v)}
+            options={[
+              {
+                icon: Eye,
+                value: "rendered",
+              },
+              {
+                icon: Code,
+                value: "source",
+              },
+            ]}
+            value={mode}
+          />
         </div>
       </div>
 
