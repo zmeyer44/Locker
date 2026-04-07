@@ -1,10 +1,11 @@
 "use client";
 
 import { useRef, useEffect, useState, memo } from "react";
-import { cn } from "@/lib/utils";
+import { cn, getFileExtension } from "@/lib/utils";
 import { FileIcon } from "@/components/file-icon";
 import { trpc } from "@/lib/trpc/client";
-import { getFileCategory } from "@locker/common";
+import { getFileCategory, isTextIndexable } from "@locker/common";
+import { CODE_EXTENSIONS } from "../../utils";
 
 /* ------------------------------------------------------------------ */
 /*  PDF first-page thumbnail (canvas-based, like PDFThumbnail)         */
@@ -81,6 +82,50 @@ const PdfThumbnail = memo(function PdfThumbnail({ url }: { url: string }) {
 });
 
 /* ------------------------------------------------------------------ */
+/*  Text document thumbnail (miniature page preview)                   */
+/* ------------------------------------------------------------------ */
+
+const TextThumbnail = memo(function TextThumbnail({ url }: { url: string }) {
+  const [content, setContent] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch(url)
+      .then((r) => r.text())
+      .then((text) => {
+        if (!cancelled) {
+          setContent(text);
+          setReady(true);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  if (!content) return null;
+
+  return (
+    <div
+      className={cn(
+        "absolute inset-0 transition-opacity duration-300",
+        ready ? "opacity-100" : "opacity-0",
+      )}
+    >
+      <div className="origin-top-left w-[400%] h-[400%] scale-[0.25] bg-white dark:bg-zinc-900 p-6 overflow-hidden">
+        <pre className="text-xs leading-[1.6] font-[system-ui,sans-serif] text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap break-words">
+          {content.slice(0, 3000)}
+        </pre>
+      </div>
+    </div>
+  );
+});
+
+/* ------------------------------------------------------------------ */
 /*  Main preview component                                             */
 /* ------------------------------------------------------------------ */
 
@@ -104,7 +149,13 @@ export function GridCardPreview({
   const isPdf = mimeType === "application/pdf";
   const isImage = category === "image";
   const isVideo = category === "video";
-  const hasPreview = isImage || isPdf || isVideo;
+  const ext = getFileExtension(fileName);
+  const isText =
+    !isPdf &&
+    (mimeType.startsWith("text/") ||
+      isTextIndexable(mimeType) ||
+      CODE_EXTENSIONS.has(ext));
+  const hasPreview = isImage || isPdf || isVideo || isText;
 
   // Observe visibility
   useEffect(() => {
@@ -145,7 +196,7 @@ export function GridCardPreview({
         mimeType={mimeType}
         className={cn(
           "size-10 opacity-30 transition-opacity duration-300",
-          (imgLoaded || (isPdf && url)) && "opacity-0",
+          (imgLoaded || (isPdf && url) || (isText && url)) && "opacity-0",
         )}
       />
 
@@ -164,6 +215,9 @@ export function GridCardPreview({
 
       {/* PDF first-page preview */}
       {isPdf && url && <PdfThumbnail url={url} />}
+
+      {/* Text document preview */}
+      {isText && url && <TextThumbnail url={url} />}
 
       {/* Video poster frame */}
       {isVideo && url && (
