@@ -13,7 +13,11 @@ import { toast } from "sonner";
 export default function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect");
+  const rawRedirect = searchParams.get("redirect");
+  const redirectTo =
+    rawRedirect?.startsWith("/") && !rawRedirect.startsWith("//")
+      ? rawRedirect
+      : null;
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

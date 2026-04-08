@@ -128,21 +128,24 @@ export const membersRouter = createRouter({
         })
         .returning();
 
+      // Shared lookups for email + notification
+      const [workspace] = await ctx.db
+        .select({ name: workspaces.name })
+        .from(workspaces)
+        .where(eq(workspaces.id, ctx.workspaceId));
+
+      const [inviter] = await ctx.db
+        .select({ name: users.name, email: users.email })
+        .from(users)
+        .where(eq(users.id, ctx.userId));
+
+      const wsName = workspace?.name ?? "a workspace";
+
       // Send invitation email
       try {
         const { sendEmail } = await import("@locker/email");
         const { WorkspaceInviteEmail } =
           await import("@locker/email/templates/workspace-invite");
-
-        const [workspace] = await ctx.db
-          .select({ name: workspaces.name })
-          .from(workspaces)
-          .where(eq(workspaces.id, ctx.workspaceId));
-
-        const [inviter] = await ctx.db
-          .select({ name: users.name, email: users.email })
-          .from(users)
-          .where(eq(users.id, ctx.userId));
 
         const baseUrl =
           process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -150,11 +153,11 @@ export const membersRouter = createRouter({
 
         await sendEmail({
           to: input.email,
-          subject: `Join ${workspace?.name ?? "workspace"} on Locker`,
+          subject: `Join ${wsName} on Locker`,
           react: WorkspaceInviteEmail({
             email: input.email,
             url: inviteUrl,
-            workspaceName: workspace?.name ?? "workspace",
+            workspaceName: wsName,
             inviterName: inviter?.name ?? undefined,
             inviterEmail: inviter?.email ?? undefined,
           }),
@@ -173,20 +176,10 @@ export const membersRouter = createRouter({
           .limit(1);
 
         if (invitedUser) {
-          const [workspace] = await ctx.db
-            .select({ name: workspaces.name })
-            .from(workspaces)
-            .where(eq(workspaces.id, ctx.workspaceId));
-
-          const [inviter] = await ctx.db
-            .select({ name: users.name })
-            .from(users)
-            .where(eq(users.id, ctx.userId));
-
-          const wsName = workspace?.name ?? "a workspace";
           const inviterName = inviter?.name ?? "Someone";
 
           await createNotification({
+            db: ctx.db,
             userId: invitedUser.id,
             type: "workspace_invite",
             title: `${inviterName} invited you to ${wsName}`,

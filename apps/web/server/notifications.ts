@@ -1,5 +1,5 @@
-import { getDb } from "@locker/database/client";
 import { notifications } from "@locker/database";
+import type { Database } from "@locker/database";
 
 type NotificationType =
   | "workspace_invite"
@@ -7,6 +7,7 @@ type NotificationType =
   | "announcement";
 
 export async function createNotification({
+  db,
   userId,
   type,
   title,
@@ -14,6 +15,7 @@ export async function createNotification({
   actionUrl,
   metadata,
 }: {
+  db: Database;
   userId: string;
   type: NotificationType;
   title: string;
@@ -21,8 +23,6 @@ export async function createNotification({
   actionUrl?: string;
   metadata?: Record<string, unknown>;
 }) {
-  const db = getDb();
-
   const [notification] = await db
     .insert(notifications)
     .values({ userId, type, title, body, actionUrl, metadata })

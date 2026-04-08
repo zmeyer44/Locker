@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Bell,
   BellOff,
@@ -28,17 +27,17 @@ function getTypeConfig(type: string) {
   return TYPE_CONFIG[type] ?? { icon: Mail, color: "text-muted-foreground" };
 }
 
-function groupByDate(
-  items: { id: string; createdAt: Date; [key: string]: unknown }[],
+function groupByDate<T extends { id: string; createdAt: Date }>(
+  items: T[],
 ) {
-  const groups: { label: string; items: typeof items }[] = [];
+  const groups: { label: string; items: T[] }[] = [];
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today.getTime() - 86400000);
   const weekAgo = new Date(today.getTime() - 7 * 86400000);
 
   let currentLabel = "";
-  let currentItems: typeof items = [];
+  let currentItems: T[] = [];
 
   for (const item of items) {
     const d = new Date(item.createdAt);
@@ -143,7 +142,7 @@ export default function NotificationsPage() {
                   {group.label}
                 </h3>
                 <div className="space-y-1">
-                  {group.items.map((n: any) => (
+                  {group.items.map((n) => (
                     <NotificationRow
                       key={n.id}
                       notification={n}

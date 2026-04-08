@@ -7,7 +7,6 @@ import { Logo } from "@/assets/logo";
 import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function OnboardingPage() {

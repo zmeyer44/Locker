@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, lt, sql } from "drizzle-orm";
 import { createRouter, protectedProcedure } from "../init";
 import { notifications } from "@locker/database";
 
@@ -16,11 +16,17 @@ export const notificationsRouter = createRouter({
     )
     .query(async ({ ctx, input }) => {
       const limit = input?.limit ?? 50;
+      const cursor = input?.cursor;
+
+      const conditions = [eq(notifications.userId, ctx.userId)];
+      if (cursor) {
+        conditions.push(lt(notifications.id, cursor));
+      }
 
       const rows = await ctx.db
         .select()
         .from(notifications)
-        .where(eq(notifications.userId, ctx.userId))
+        .where(and(...conditions))
         .orderBy(desc(notifications.createdAt))
         .limit(limit + 1);
 
