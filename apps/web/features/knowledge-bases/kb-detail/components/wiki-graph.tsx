@@ -83,6 +83,18 @@ export function WikiGraph({
 
     const nodes = nodesRef.current;
     const edges = edgesRef.current;
+    const hoveredId = hoveredRef.current?.id ?? null;
+
+    // Build set of connected node IDs for hovered node
+    const connectedIds = new Set<string>();
+    if (hoveredId) {
+      for (const edge of edges) {
+        const sId = typeof edge.source === "string" ? edge.source : (edge.source as GraphNode).id;
+        const tId = typeof edge.target === "string" ? edge.target : (edge.target as GraphNode).id;
+        if (sId === hoveredId) connectedIds.add(tId);
+        if (tId === hoveredId) connectedIds.add(sId);
+      }
+    }
 
     // Draw edges
     for (const edge of edges) {
@@ -95,6 +107,11 @@ export function WikiGraph({
         target.y == null
       )
         continue;
+
+      const isConnected =
+        hoveredId !== null &&
+        (source.id === hoveredId || target.id === hoveredId);
+      const isDimmed = hoveredId !== null && !isConnected;
 
       const dx = target.x - source.x;
       const dy = target.y - source.y;
@@ -111,8 +128,12 @@ export function WikiGraph({
       ctx.beginPath();
       ctx.moveTo(sx, sy);
       ctx.lineTo(ex, ey);
-      ctx.strokeStyle = "rgba(140,140,160,0.35)";
-      ctx.lineWidth = 1.2 / k;
+      ctx.strokeStyle = isConnected
+        ? `hsl(${primaryColor} / 0.8)`
+        : isDimmed
+          ? "rgba(140,140,160,0.12)"
+          : "rgba(140,140,160,0.35)";
+      ctx.lineWidth = (isConnected ? 2 : 1.2) / k;
       ctx.stroke();
 
       // Arrowhead
@@ -129,14 +150,20 @@ export function WikiGraph({
         ay - uy * ARROW_SIZE + ux * (ARROW_SIZE / 2.5),
       );
       ctx.closePath();
-      ctx.fillStyle = "rgba(140,140,160,0.5)";
+      ctx.fillStyle = isConnected
+        ? `hsl(${primaryColor} / 0.8)`
+        : isDimmed
+          ? "rgba(140,140,160,0.2)"
+          : "rgba(140,140,160,0.5)";
       ctx.fill();
     }
 
     // Draw nodes
     for (const node of nodes) {
       if (node.x == null || node.y == null) continue;
-      const isHovered = hoveredRef.current?.id === node.id;
+      const isHovered = hoveredId === node.id;
+      const isNeighbor = connectedIds.has(node.id);
+      const isDimmed = hoveredId !== null && !isHovered && !isNeighbor;
 
       const connections = connectionCountRef.current.get(node.id) ?? 0;
       const r = NODE_RADIUS + Math.min(connections, 8) * 0.8;
@@ -144,13 +171,15 @@ export function WikiGraph({
       // Node circle
       ctx.beginPath();
       ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
-      ctx.fillStyle = isHovered
-        ? `hsl(${primaryColor})`
-        : `hsl(${primaryColor} / 0.8)`;
+      ctx.fillStyle = isDimmed
+        ? `hsl(${primaryColor} / 0.25)`
+        : isHovered
+          ? `hsl(${primaryColor})`
+          : `hsl(${primaryColor} / 0.8)`;
       ctx.fill();
 
-      if (isHovered) {
-        ctx.strokeStyle = `hsl(${primaryColor} / 0.5)`;
+      if (isHovered || isNeighbor) {
+        ctx.strokeStyle = `hsl(${primaryColor} / ${isHovered ? "0.5" : "0.35"})`;
         ctx.lineWidth = 2 / k;
         ctx.stroke();
       }
@@ -159,9 +188,11 @@ export function WikiGraph({
       ctx.font = LABEL_FONT;
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
-      ctx.fillStyle = isHovered
-        ? `hsl(${fgColor})`
-        : `hsl(${mutedFgColor})`;
+      ctx.fillStyle = isDimmed
+        ? `hsl(${mutedFgColor} / 0.3)`
+        : isHovered || isNeighbor
+          ? `hsl(${fgColor})`
+          : `hsl(${mutedFgColor})`;
       ctx.fillText(node.label, node.x, node.y + r + 4);
     }
 
@@ -200,16 +231,22 @@ export function WikiGraph({
     }
     connectionCountRef.current = counts;
 
+    // Scale forces based on graph density for better layout
+    const density = nodes.length > 0 ? edges.length / nodes.length : 0;
+    const linkDist = density > 2 ? 160 : 120;
+    const chargeStr = density > 2 ? -500 : -300;
+    const collideRadius = density > 2 ? 55 : 40;
+
     const sim = forceSimulation(nodes)
       .force(
         "link",
         forceLink<GraphNode, GraphEdge>(edges)
           .id((d) => d.id)
-          .distance(120),
+          .distance(linkDist),
       )
-      .force("charge", forceManyBody().strength(-300))
+      .force("charge", forceManyBody().strength(chargeStr))
       .force("center", forceCenter(0, 0))
-      .force("collide", forceCollide(40))
+      .force("collide", forceCollide(collideRadius))
       .on("tick", draw);
 
     simRef.current = sim;

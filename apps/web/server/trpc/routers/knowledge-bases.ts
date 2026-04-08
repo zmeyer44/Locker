@@ -478,6 +478,7 @@ export const knowledgeBasesRouter = createRouter({
       }
 
       // Read each page content and extract [[links]]
+      const edgeSet = new Set<string>();
       const edges: Array<{ source: string; target: string }> = [];
 
       await Promise.all(
@@ -496,7 +497,11 @@ export const knowledgeBasesRouter = createRouter({
                 slugToPath.get(slug) ??
                 slugToPath.get(`${slug}.md`);
               if (targetPath && targetPath !== page.path) {
-                edges.push({ source: page.path, target: targetPath });
+                const key = `${page.path}\0${targetPath}`;
+                if (!edgeSet.has(key)) {
+                  edgeSet.add(key);
+                  edges.push({ source: page.path, target: targetPath });
+                }
               }
             }
           } catch {

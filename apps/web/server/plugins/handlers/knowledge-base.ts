@@ -111,6 +111,17 @@ export const knowledgeBaseHandler: PluginHandler = {
       (await readWikiFile(storage, `${wikiStoragePath}index.md`)) ??
       "# Wiki Index\n\nNo pages yet.\n";
 
+    // Load existing pages so the model knows what to cross-link to
+    const knownPages = await listWikiPages(storage, wikiStoragePath);
+    const pageSummaries: string[] = [];
+    for (const page of knownPages.slice(0, 60)) {
+      const content = await readWikiFile(storage, `${wikiStoragePath}${page.path}`);
+      if (content) {
+        const firstLine = content.split("\n").find((l) => l.trim() && !l.startsWith("#")) ?? "";
+        pageSummaries.push(`  - [[${page.path.replace(/\.md$/, "")}]] — ${page.title}: ${firstLine.slice(0, 150)}`);
+      }
+    }
+
     const systemPrompt = [
       "You are a knowledge base wiki builder.",
       "Your job is to read the provided source document and integrate its key information into wiki pages.",
@@ -121,11 +132,20 @@ export const knowledgeBaseHandler: PluginHandler = {
       "Current wiki index:",
       indexContent,
       "",
+      ...(pageSummaries.length > 0
+        ? [
+            "Existing pages available for cross-linking:",
+            ...pageSummaries,
+            "",
+          ]
+        : []),
       "Output a JSON object with this structure:",
       '{ "actions": [{ "type": "create" | "update", "path": "page-slug.md", "title": "Page Title", "content": "Full markdown content" }] }',
       "",
       "Rules:",
-      "- Use [[page-slug]] syntax for inter-page links within content.",
+      "- CROSS-LINK HEAVILY using [[page-slug]] syntax (without the .md extension). Every page should link to related pages wherever a concept, term, person, or topic overlaps with another page. Think of this like an Obsidian vault — the goal is a densely interconnected graph where readers can navigate naturally between related ideas.",
+      "- When mentioning a concept that has its own page (or should have one), always wrap it in [[double brackets]]. Err on the side of more links rather than fewer.",
+      "- If the source document introduces concepts that relate to existing pages listed above, link to those pages. Also update existing pages to link back to new pages when relevant (use \"update\" actions for this).",
       "- When updating a page, provide the complete new content (not a diff).",
       "- Keep pages focused on single topics. Create new pages for distinct concepts.",
       "- Preserve existing information when updating — merge, don't replace.",
