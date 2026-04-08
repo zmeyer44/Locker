@@ -28,6 +28,11 @@ test.describe.serial("Knowledge Base flows", () => {
     await page.getByPlaceholder("Choose a password").fill(TEST_USER.password);
     await page.getByRole("button", { name: /create account/i }).click();
 
+    // Pre-dismiss the KB announcement modal via localStorage before workspace loads
+    await page.evaluate(() =>
+      localStorage.setItem("openstore:kb-announcement-dismissed", "1"),
+    );
+
     // Onboard
     await page.waitForURL("/onboarding", { timeout: 15000 });
     await page.getByPlaceholder("e.g. Acme Inc").fill("KB Test Workspace");
@@ -550,6 +555,10 @@ test.describe.serial("Knowledge Base flows", () => {
 
 async function loginAs(page: Page) {
   await page.goto("/login");
+  // Pre-dismiss KB announcement modal before workspace loads
+  await page.evaluate(() =>
+    localStorage.setItem("openstore:kb-announcement-dismissed", "1"),
+  );
   await page.getByPlaceholder("you@example.com").fill(TEST_USER.email);
   await page.getByPlaceholder("Enter password").fill(TEST_USER.password);
   await page.getByRole("button", { name: /sign in/i }).click();

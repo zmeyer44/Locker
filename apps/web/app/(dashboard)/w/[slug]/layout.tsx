@@ -5,6 +5,7 @@ import { getDb } from "@locker/database/client";
 import { workspaces, workspaceMembers } from "@locker/database";
 import { eq, and } from "drizzle-orm";
 import { WorkspaceProvider } from "@/lib/workspace-context";
+import { KBAnnouncementModal } from "@/components/kb-announcement-modal";
 
 export default async function WorkspaceLayout({
   children,
@@ -51,6 +52,7 @@ export default async function WorkspaceLayout({
       }}
     >
       {children}
+      <KBAnnouncementModal />
     </WorkspaceProvider>
   );
 }
