@@ -3,7 +3,7 @@ FROM node:22-slim
 WORKDIR /app
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 make g++ \
+  && apt-get install -y --no-install-recommends python3 make g++ curl \
   && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHON=/usr/bin/python3

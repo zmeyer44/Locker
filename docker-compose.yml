@@ -1,6 +1,8 @@
 services:
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
@@ -15,5 +17,132 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── QMD (Semantic Search) ────────────────────────────────────────────────────
+  qmd:
+    build:
+      context: ./services/qmd
+    restart: unless-stopped
+    ports:
+      - "9600:9600"
+    environment:
+      QMD_PORT: 9600
+      QMD_API_SECRET: ${QMD_API_SECRET:?Set QMD_API_SECRET in .env — generate with: openssl rand -base64 32}
+    volumes:
+      - qmd_data:/data/qmd
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9600/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── FTS (Full-Text Search) ──────────────────────────────────────────────────
+  fts:
+    build:
+      context: ./services/fts
+    restart: unless-stopped
+    ports:
+      - "9700:9700"
+    environment:
+      FTS_PORT: 9700
+      FTS_API_SECRET: ${FTS_API_SECRET:?Set FTS_API_SECRET in .env — generate with: openssl rand -base64 32}
+    volumes:
+      - fts_data:/data/fts
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9700/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Database Migrations ─────────────────────────────────────────────────────
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrator
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/locker
+
+  # ── Web App (Next.js) ──────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      qmd:
+        condition: service_healthy
+      fts:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/locker
+
+      # Authentication — REQUIRED, no default
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET in .env — generate with: openssl rand -base64 32}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+
+      # App
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      NODE_ENV: ${NODE_ENV:-production}
+
+      # Blob Storage — defaults to local filesystem
+      BLOB_STORAGE_PROVIDER: ${BLOB_STORAGE_PROVIDER:-local}
+      LOCAL_BLOB_DIR: /app/local-blobs
+
+      # S3 (optional)
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+
+      # Cloudflare R2 (optional)
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_BUCKET: ${R2_BUCKET:-}
+      R2_PUBLIC_URL: ${R2_PUBLIC_URL:-}
+
+      # Vercel Blob (optional)
+      BLOB_READ_WRITE_TOKEN: ${BLOB_READ_WRITE_TOKEN:-}
+
+      # Search services (internal Docker network)
+      QMD_SERVICE_URL: http://qmd:9600
+      QMD_API_SECRET: ${QMD_API_SECRET:?Set QMD_API_SECRET in .env}
+      FTS_SERVICE_URL: http://fts:9700
+      FTS_API_SECRET: ${FTS_API_SECRET:?Set FTS_API_SECRET in .env}
+
+      # Email (optional)
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+
+      # Google OAuth (optional)
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+
+      # Plugin encryption (optional)
+      PLUGIN_ENCRYPTION_SECRET: ${PLUGIN_ENCRYPTION_SECRET:-}
+
+      # AI Gateway (optional — for document transcription)
+      AI_GATEWAY_API_KEY: ${AI_GATEWAY_API_KEY:-}
+      AI_GATEWAY_MODEL: ${AI_GATEWAY_MODEL:-}
+
+      # Storage limits (optional)
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-}
+      MAX_STORAGE_PER_USER: ${MAX_STORAGE_PER_USER:-}
+    volumes:
+      - blob_data:/app/local-blobs
+
 volumes:
   pgdata:
+  qmd_data:
+  fts_data:
+  blob_data:
