@@ -28,6 +28,10 @@ ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV NODE_ENV=production
 
+# Next.js expects .env files to exist during build (even if empty).
+# The real env vars are provided at runtime via docker-compose.
+RUN touch .env apps/web/.env
+
 RUN pnpm turbo build --filter=@locker/web
 
 # ── Stage 4: Migrator ───────────────────────────────────────────────────────
