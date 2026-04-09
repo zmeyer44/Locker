@@ -11,27 +11,53 @@ function generateToken(): string {
   return randomBytes(SHARE_TOKEN_LENGTH).toString("hex");
 }
 
+type Db = ReturnType<typeof import("@locker/database/client").getDb>;
+
 /**
- * Walk up the parentId chain to verify `childFolderId` is a descendant of
- * `ancestorFolderId`. Returns true if they are the same folder.
+ * Verify `childFolderId` is equal to or a descendant of `ancestorFolderId`
+ * using a single recursive CTE instead of N sequential queries.
  */
 export async function isDescendantFolder(
-  db: ReturnType<typeof import("@locker/database/client").getDb>,
+  db: Db,
   childFolderId: string,
   ancestorFolderId: string,
 ): Promise<boolean> {
   if (childFolderId === ancestorFolderId) return true;
-  let currentId: string | null = childFolderId;
-  while (currentId) {
-    const [folder] = await db
-      .select({ parentId: folders.parentId })
-      .from(folders)
-      .where(eq(folders.id, currentId));
-    if (!folder) return false;
-    if (folder.parentId === ancestorFolderId) return true;
-    currentId = folder.parentId;
-  }
-  return false;
+  const result = await db.execute(sql`
+    WITH RECURSIVE ancestors AS (
+      SELECT id, parent_id FROM folders WHERE id = ${childFolderId}
+      UNION ALL
+      SELECT f.id, f.parent_id
+      FROM folders f
+      JOIN ancestors a ON f.id = a.parent_id
+    )
+    SELECT 1 AS found FROM ancestors WHERE parent_id = ${ancestorFolderId} LIMIT 1
+  `);
+  return result.rows.length > 0;
+}
+
+/**
+ * Build breadcrumbs from `folderId` up to (but not including) `rootFolderId`
+ * using a single recursive CTE. Returns ordered from root → leaf.
+ */
+export async function buildBreadcrumbs(
+  db: Db,
+  folderId: string,
+  rootFolderId: string,
+): Promise<{ id: string; name: string }[]> {
+  if (folderId === rootFolderId) return [];
+  const result = await db.execute(sql`
+    WITH RECURSIVE ancestors AS (
+      SELECT id, name, parent_id, 0 AS depth FROM folders WHERE id = ${folderId}
+      UNION ALL
+      SELECT f.id, f.name, f.parent_id, a.depth + 1
+      FROM folders f
+      JOIN ancestors a ON f.id = a.parent_id
+      WHERE a.id != ${rootFolderId}
+    )
+    SELECT id, name FROM ancestors WHERE id != ${rootFolderId} ORDER BY depth DESC
+  `);
+  return result.rows as { id: string; name: string }[];
 }
 
 export const sharesRouter = createRouter({
@@ -335,18 +361,7 @@ export const sharesRouter = createRouter({
         .where(eq(folders.parentId, input.folderId))
         .orderBy(asc(folders.name));
 
-      // Build breadcrumbs from shared root to current folder
-      const breadcrumbs: { id: string; name: string }[] = [];
-      let currentId: string | null = input.folderId;
-      while (currentId && currentId !== link.folderId) {
-        const [f] = await ctx.db
-          .select({ id: folders.id, name: folders.name, parentId: folders.parentId })
-          .from(folders)
-          .where(eq(folders.id, currentId));
-        if (!f) break;
-        breadcrumbs.unshift({ id: f.id, name: f.name });
-        currentId = f.parentId;
-      }
+      const breadcrumbs = await buildBreadcrumbs(ctx.db, input.folderId, link.folderId);
 
       return {
         folder: { id: folder.id, name: folder.name },

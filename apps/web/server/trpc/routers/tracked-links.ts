@@ -15,7 +15,7 @@ import {
 import { TRACKED_LINK_TOKEN_LENGTH } from "@locker/common";
 import { createStorageForFile } from "../../../server/storage";
 import { hashLinkPassword, verifyLinkPassword } from "../../security/password";
-import { isDescendantFolder } from "./shares";
+import { isDescendantFolder, buildBreadcrumbs } from "./shares";
 
 function generateToken(): string {
   return randomBytes(TRACKED_LINK_TOKEN_LENGTH).toString("hex");
@@ -596,18 +596,7 @@ export const trackedLinksRouter = createRouter({
         .where(eq(folders.parentId, input.folderId))
         .orderBy(asc(folders.name));
 
-      // Build breadcrumbs from shared root to current folder
-      const breadcrumbs: { id: string; name: string }[] = [];
-      let currentId: string | null = input.folderId;
-      while (currentId && currentId !== link.folderId) {
-        const [f] = await ctx.db
-          .select({ id: folders.id, name: folders.name, parentId: folders.parentId })
-          .from(folders)
-          .where(eq(folders.id, currentId));
-        if (!f) break;
-        breadcrumbs.unshift({ id: f.id, name: f.name });
-        currentId = f.parentId;
-      }
+      const breadcrumbs = await buildBreadcrumbs(ctx.db, input.folderId, link.folderId);
 
       return {
         folder: { id: folder.id, name: folder.name },

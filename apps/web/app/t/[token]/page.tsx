@@ -270,9 +270,6 @@ export default function TrackedLinkPage({
   const displaySubfolders = isBrowsing
     ? browseData?.subfolders
     : item.subfolders;
-  const displayName = isBrowsing
-    ? (browseData?.folder?.name ?? "...")
-    : item.name;
   const breadcrumbs = browseData?.breadcrumbs ?? [];
 
   return (
