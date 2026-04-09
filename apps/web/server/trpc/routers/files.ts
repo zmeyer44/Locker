@@ -12,6 +12,7 @@ import {
   or,
   gte,
   lt,
+  like,
 } from "drizzle-orm";
 import { createRouter, workspaceProcedure } from "../init";
 import { files, workspaces, folders, fileTags, tags } from "@locker/database";
@@ -134,6 +135,27 @@ export const filesRouter = createRouter({
           );
         } else {
           conditions.push(nameMatch);
+        }
+        // Exclude files inside hidden system folders (e.g. .plugins)
+        const hiddenRoots = await db
+          .select({ id: folders.id })
+          .from(folders)
+          .where(
+            and(
+              eq(folders.workspaceId, ctx.workspaceId),
+              like(folders.name, ".%"),
+            ),
+          );
+        if (hiddenRoots.length > 0) {
+          const rootIds = hiddenRoots.map((f) => f.id);
+          const children = await db
+            .select({ id: folders.id })
+            .from(folders)
+            .where(inArray(folders.parentId, rootIds));
+          const allHiddenIds = [...rootIds, ...children.map((f) => f.id)];
+          conditions.push(
+            or(isNull(files.folderId), not(inArray(files.folderId, allHiddenIds)))!,
+          );
         }
       } else {
         conditions.push(

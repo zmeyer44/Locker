@@ -158,6 +158,7 @@ export async function transcribeFile(params: {
       workspaceId,
       userId,
       pluginId,
+      pluginSlug,
       config,
     });
 

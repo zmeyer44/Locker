@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, asc, isNull } from "drizzle-orm";
+import { eq, and, asc, isNull, not, like } from "drizzle-orm";
 import { createRouter, workspaceProcedure } from "../init";
 import { folders, files } from "@locker/database";
 import {
@@ -24,6 +24,9 @@ export const foldersRouter = createRouter({
       } else {
         conditions.push(isNull(folders.parentId));
       }
+
+      // Hide system folders (dot-prefixed, e.g. .plugins) from the explorer
+      conditions.push(not(like(folders.name, ".%")));
 
       return ctx.db
         .select()

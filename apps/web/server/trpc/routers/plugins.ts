@@ -595,6 +595,31 @@ export const pluginsRouter = createRouter({
   uninstall: workspaceAdminProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      // Look up plugin slug before deletion for storage cleanup
+      const [plugin] = await ctx.db
+        .select({ pluginSlug: workspacePlugins.pluginSlug })
+        .from(workspacePlugins)
+        .where(
+          and(
+            eq(workspacePlugins.id, input.id),
+            eq(workspacePlugins.workspaceId, ctx.workspaceId),
+          ),
+        )
+        .limit(1);
+
+      if (plugin) {
+        // Clean up any files stored by this plugin
+        const { createStorageForWorkspace } = await import("../../storage");
+        const { cleanupPluginStorage } = await import("../../plugins/plugin-storage");
+        const { storage } = await createStorageForWorkspace(ctx.workspaceId);
+        await cleanupPluginStorage({
+          db: ctx.db,
+          storage,
+          workspaceId: ctx.workspaceId,
+          pluginSlug: plugin.pluginSlug,
+        });
+      }
+
       await ctx.db
         .delete(workspacePlugins)
         .where(

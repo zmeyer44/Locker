@@ -103,6 +103,7 @@ export async function ingestFileIntoKB(params: {
     workspaceId,
     userId,
     pluginId: kb.id,
+    pluginSlug: "knowledge-base",
     config: {},
   });
 

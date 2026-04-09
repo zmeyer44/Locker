@@ -4,6 +4,7 @@ import { workspacePlugins, workspacePluginSecrets } from "@locker/database";
 import type { Database } from "@locker/database";
 import type { PluginPermission } from "@locker/common";
 import { decryptPluginSecret } from "./secrets";
+import { createPluginStorage } from "./plugin-storage";
 import type {
   PluginHandler,
   PluginContext,
@@ -38,6 +39,7 @@ export async function buildPluginContext(params: {
   workspaceId: string;
   userId: string;
   pluginId: string;
+  pluginSlug: string;
   config: Record<string, string | number | boolean | null>;
 }): Promise<PluginContext> {
   const secretRows = await params.db
@@ -57,11 +59,22 @@ export async function buildPluginContext(params: {
     }
   }
 
+  const storageResult = await createStorageForWorkspace(params.workspaceId);
+
   return {
     workspaceId: params.workspaceId,
     userId: params.userId,
     db: params.db,
-    storage: (await createStorageForWorkspace(params.workspaceId)).storage,
+    storage: storageResult.storage,
+    pluginStorage: createPluginStorage({
+      db: params.db,
+      storage: storageResult.storage,
+      workspaceId: params.workspaceId,
+      userId: params.userId,
+      pluginSlug: params.pluginSlug,
+      storageConfigId: storageResult.configId,
+      providerName: storageResult.providerName,
+    }),
     config: params.config,
     secrets,
   };
@@ -91,6 +104,7 @@ export async function dispatchAction(params: {
     workspaceId: params.workspaceId,
     userId: params.userId,
     pluginId: params.pluginId,
+    pluginSlug: params.pluginSlug,
     config: params.config,
   });
 
@@ -156,6 +170,7 @@ export async function dispatchSearch<
       workspaceId: params.workspaceId,
       userId: "system:search", // search dispatched without a specific actor
       pluginId: plugin.id,
+      pluginSlug: plugin.pluginSlug,
       config,
     });
 

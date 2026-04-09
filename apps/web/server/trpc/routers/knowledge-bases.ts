@@ -678,6 +678,7 @@ export const knowledgeBasesRouter = createRouter({
         workspaceId: ctx.workspaceId,
         userId: ctx.userId,
         pluginId: kb.id,
+        pluginSlug: "knowledge-base",
         config: {},
       });
 
@@ -791,6 +792,7 @@ export const knowledgeBasesRouter = createRouter({
         workspaceId: ctx.workspaceId,
         userId: ctx.userId,
         pluginId: kb.id,
+        pluginSlug: "knowledge-base",
         config: {},
       });
 

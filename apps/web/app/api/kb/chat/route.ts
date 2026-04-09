@@ -133,6 +133,7 @@ export async function POST(req: NextRequest) {
     workspaceId: kb.workspaceId,
     userId: session.user.id,
     pluginId: kb.id,
+    pluginSlug: "knowledge-base",
     config: model ? { model } : {},
   });
 
