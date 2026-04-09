@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { MenuIcon, XIcon } from "lucide-react";
+import { useSession } from "@/lib/auth/client";
 
 const navItems = [
   { label: "Features", href: "#features" },
@@ -14,6 +15,7 @@ const navItems = [
 ];
 
 export function Navbar() {
+  const { data: session } = useSession();
   const [hasScrolled, setHasScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -91,24 +93,34 @@ export function Navbar() {
 
               {/* Right */}
               <div className="flex items-center gap-2">
-                <Link href="/login" className="hidden sm:block">
-                  <Button
-                    variant={hasScrolled ? "ghost" : "ghost"}
-                    size="sm"
-                    className={cn(
-                      "rounded-lg",
-                      !hasScrolled &&
-                        "text-primary-foreground/80 hover:bg-white/10 hover:text-primary-foreground",
-                    )}
-                  >
-                    Sign in
-                  </Button>
-                </Link>
-                <Link href="/register">
-                  <Button size="sm" className="rounded-lg">
-                    Get Started
-                  </Button>
-                </Link>
+                {session ? (
+                  <Link href="/home">
+                    <Button size="sm" className="rounded-lg">
+                      Dashboard
+                    </Button>
+                  </Link>
+                ) : (
+                  <>
+                    <Link href="/login" className="hidden sm:block">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                          "rounded-lg",
+                          !hasScrolled &&
+                            "text-primary-foreground/80 hover:bg-white/10 hover:text-primary-foreground",
+                        )}
+                      >
+                        Sign in
+                      </Button>
+                    </Link>
+                    <Link href="/register">
+                      <Button size="sm" className="rounded-lg">
+                        Get Started
+                      </Button>
+                    </Link>
+                  </>
+                )}
                 <button
                   type="button"
                   className={cn(
@@ -142,13 +154,23 @@ export function Navbar() {
                   {item.label}
                 </Link>
               ))}
-              <Link
-                href="/login"
-                className="mt-2 block rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted sm:hidden"
-                onClick={() => setMobileOpen(false)}
-              >
-                Sign in
-              </Link>
+              {session ? (
+                <Link
+                  href="/home"
+                  className="mt-2 block rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Dashboard
+                </Link>
+              ) : (
+                <Link
+                  href="/login"
+                  className="mt-2 block rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted sm:hidden"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Sign in
+                </Link>
+              )}
             </div>
           )}
         </div>
