@@ -225,7 +225,8 @@ export function createFileTools(ctx: AssistantToolContext) {
 
         if (folderId) {
           conditions.push(eq(files.folderId, folderId));
-        } else if (folderId === null) {
+        } else {
+          // null or undefined (omitted) → root-level files only
           conditions.push(isNull(files.folderId));
         }
 
@@ -421,21 +422,21 @@ export function createFileTools(ctx: AssistantToolContext) {
           // Storage deletion is best-effort
         }
 
-        // Delete DB record
-        await ctx.db.delete(files).where(
-          and(
-            eq(files.id, fileId),
-            eq(files.workspaceId, ctx.workspaceId),
-          ),
-        );
-
-        // Update workspace storage usage
-        await ctx.db
-          .update(workspaces)
-          .set({
-            storageUsed: sql`GREATEST(${workspaces.storageUsed} - ${file.size}, 0)`,
-          })
-          .where(eq(workspaces.id, ctx.workspaceId));
+        // Delete DB record and update storage usage atomically
+        await ctx.db.transaction(async (tx) => {
+          await tx.delete(files).where(
+            and(
+              eq(files.id, fileId),
+              eq(files.workspaceId, ctx.workspaceId),
+            ),
+          );
+          await tx
+            .update(workspaces)
+            .set({
+              storageUsed: sql`GREATEST(${workspaces.storageUsed} - ${file.size}, 0)`,
+            })
+            .where(eq(workspaces.id, ctx.workspaceId));
+        });
 
         invalidateWorkspaceVfsSnapshot(ctx.workspaceId);
         return { success: true, deletedFile: file.name };

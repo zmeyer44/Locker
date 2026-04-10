@@ -171,9 +171,13 @@ export async function POST(req: NextRequest) {
       const textParts = msg.parts.filter(
         (p: any) => p.type === "text" && p.text,
       );
-      if (textParts.length === 0) return null;
+      if (textParts.length === 0) {
+        // Keep tool-only turns with a placeholder so multi-step
+        // continuity is preserved and the model sees its prior actions.
+        return { ...msg, parts: [{ type: "text" as const, text: "[Tool actions performed]" }] };
+      }
       return { ...msg, parts: textParts };
-    }).filter(Boolean) as UIMessage[];
+    }) as UIMessage[];
 
     const modelMessages = await convertToModelMessages(cleanedMessages);
 

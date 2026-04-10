@@ -193,6 +193,8 @@ export function ChatPage({ workspaceSlug }: { workspaceSlug: string }) {
         uploadedFiles = results;
       } catch (err) {
         toast.error("Failed to upload attachments");
+        setInputValue(currentText);
+        setAttachments(currentAttachments);
         setPendingMessage(null);
         return;
       }

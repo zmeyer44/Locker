@@ -215,44 +215,46 @@ export function createFolderTools(ctx: AssistantToolContext) {
           return { error: "Folder not found" };
         }
 
-        // Recursive delete helper
-        async function deleteFolderRecursive(id: string) {
-          const subfolders = await ctx.db
-            .select({ id: folders.id })
-            .from(folders)
-            .where(
-              and(
-                eq(folders.parentId, id),
-                eq(folders.workspaceId, ctx.workspaceId),
-              ),
-            );
+        // Recursive delete wrapped in a transaction for atomicity
+        await ctx.db.transaction(async (tx) => {
+          async function deleteFolderRecursive(id: string) {
+            const subfolders = await tx
+              .select({ id: folders.id })
+              .from(folders)
+              .where(
+                and(
+                  eq(folders.parentId, id),
+                  eq(folders.workspaceId, ctx.workspaceId),
+                ),
+              );
 
-          for (const sub of subfolders) {
-            await deleteFolderRecursive(sub.id);
+            for (const sub of subfolders) {
+              await deleteFolderRecursive(sub.id);
+            }
+
+            // Move files to root instead of deleting them
+            await tx
+              .update(files)
+              .set({ folderId: null })
+              .where(
+                and(
+                  eq(files.folderId, id),
+                  eq(files.workspaceId, ctx.workspaceId),
+                ),
+              );
+
+            await tx
+              .delete(folders)
+              .where(
+                and(
+                  eq(folders.id, id),
+                  eq(folders.workspaceId, ctx.workspaceId),
+                ),
+              );
           }
 
-          // Move files to root instead of deleting them
-          await ctx.db
-            .update(files)
-            .set({ folderId: null })
-            .where(
-              and(
-                eq(files.folderId, id),
-                eq(files.workspaceId, ctx.workspaceId),
-              ),
-            );
-
-          await ctx.db
-            .delete(folders)
-            .where(
-              and(
-                eq(folders.id, id),
-                eq(folders.workspaceId, ctx.workspaceId),
-              ),
-            );
-        }
-
-        await deleteFolderRecursive(folderId);
+          await deleteFolderRecursive(folderId);
+        });
         invalidateWorkspaceVfsSnapshot(ctx.workspaceId);
         return { success: true, deletedFolder: folder.name };
       },
