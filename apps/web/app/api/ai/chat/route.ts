@@ -20,11 +20,11 @@ import { createAssistantTools } from "../../../../server/ai/tools";
 import { buildAssistantSystemPrompt } from "../../../../server/ai/system-prompt";
 
 const ALLOWED_MODELS = [
-  "openai/gpt-4o",
-  "openai/gpt-4o-mini",
-  "anthropic/claude-sonnet-4-20250514",
-  "anthropic/claude-haiku-3-5-20241022",
-  "google/gemini-2.0-flash",
+  "anthropic/claude-sonnet-4.6",
+  "anthropic/claude-opus-4.6",
+  "openai/gpt-5.4",
+  "google/gemini-3-flash",
+  "xai/grok-4.1-fast-reasoning",
 ];
 
 export async function POST(req: NextRequest) {

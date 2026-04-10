@@ -11,22 +11,26 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export const AVAILABLE_MODELS = [
-  { id: "openai/gpt-4o", label: "GPT-4o", provider: "OpenAI" },
-  { id: "openai/gpt-4o-mini", label: "GPT-4o Mini", provider: "OpenAI" },
   {
-    id: "anthropic/claude-sonnet-4-20250514",
-    label: "Claude Sonnet 4",
+    id: "anthropic/claude-sonnet-4.6",
+    label: "Claude Sonnet 4.6",
     provider: "Anthropic",
   },
   {
-    id: "anthropic/claude-haiku-3-5-20241022",
-    label: "Claude 3.5 Haiku",
+    id: "anthropic/claude-opus-4.6",
+    label: "Claude Opus 4.6",
     provider: "Anthropic",
   },
+  { id: "openai/gpt-5.4", label: "GPT-5.4", provider: "OpenAI" },
   {
-    id: "google/gemini-2.0-flash",
-    label: "Gemini 2.0 Flash",
+    id: "google/gemini-3-flash",
+    label: "Gemini 3 Flash",
     provider: "Google",
+  },
+  {
+    id: "xai/grok-4.1-fast-reasoning",
+    label: "Grok 4.1",
+    provider: "xAI",
   },
 ] as const;
 

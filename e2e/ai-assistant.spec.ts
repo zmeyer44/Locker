@@ -151,7 +151,7 @@ test.describe.serial("AI Assistant chat flows", () => {
     await page.waitForTimeout(1000);
 
     // The model selector label is in the DOM (may be below visible fold on small viewports)
-    await expect(page.locator("span", { hasText: "GPT-4o" })).toBeAttached();
+    await expect(page.locator("span", { hasText: "Claude Sonnet 4.6" })).toBeAttached();
 
     await page.screenshot({
       path: "e2e/screenshots/ai-chat-07-model-selector.png",
