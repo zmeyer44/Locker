@@ -375,7 +375,26 @@ export function createFileTools(ctx: AssistantToolContext) {
 
         if (!file) return { error: "File not found" };
 
-        // Deindex from search plugins (best-effort)
+        // Delete DB record and update storage usage atomically FIRST.
+        // This must happen before storage/index cleanup so that a DB
+        // failure is a no-op. An orphaned storage object can be GC'd
+        // later; a ghost DB row pointing at deleted storage cannot.
+        await ctx.db.transaction(async (tx) => {
+          await tx.delete(files).where(
+            and(
+              eq(files.id, fileId),
+              eq(files.workspaceId, ctx.workspaceId),
+            ),
+          );
+          await tx
+            .update(workspaces)
+            .set({
+              storageUsed: sql`GREATEST(${workspaces.storageUsed} - ${file.size}, 0)`,
+            })
+            .where(eq(workspaces.id, ctx.workspaceId));
+        });
+
+        // Deindex from search plugins and delete from storage (best-effort)
         const qmdEndpoint = await resolvePluginEndpoint(
           ctx.db,
           ctx.workspaceId,
@@ -410,7 +429,6 @@ export function createFileTools(ctx: AssistantToolContext) {
             : Promise.resolve(),
         ]);
 
-        // Delete from storage
         try {
           const storage = await createStorageForFile(
             file.storageConfigId,
@@ -421,22 +439,6 @@ export function createFileTools(ctx: AssistantToolContext) {
         } catch {
           // Storage deletion is best-effort
         }
-
-        // Delete DB record and update storage usage atomically
-        await ctx.db.transaction(async (tx) => {
-          await tx.delete(files).where(
-            and(
-              eq(files.id, fileId),
-              eq(files.workspaceId, ctx.workspaceId),
-            ),
-          );
-          await tx
-            .update(workspaces)
-            .set({
-              storageUsed: sql`GREATEST(${workspaces.storageUsed} - ${file.size}, 0)`,
-            })
-            .where(eq(workspaces.id, ctx.workspaceId));
-        });
 
         invalidateWorkspaceVfsSnapshot(ctx.workspaceId);
         return { success: true, deletedFile: file.name };
