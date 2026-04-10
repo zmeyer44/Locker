@@ -1,14 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback } from "react";
-import {
-  ArrowUp,
-  Square,
-  ChevronDown,
-  Plus,
-  Paperclip,
-  X,
-} from "lucide-react";
+import { ArrowUp, Square, ChevronDown, Plus, Paperclip, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -56,6 +49,7 @@ interface ChatInputProps {
   attachments?: ChatAttachment[];
   onAttach?: (files: FileList) => void;
   onRemoveAttachment?: (index: number) => void;
+  className?: string;
 }
 
 export function ChatInput({
@@ -70,6 +64,7 @@ export function ChatInput({
   attachments = [],
   onAttach,
   onRemoveAttachment,
+  className,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -132,7 +127,7 @@ export function ChatInput({
     AVAILABLE_MODELS.find((m) => m.id === model) ?? AVAILABLE_MODELS[0];
 
   return (
-    <div className="px-4 pb-4 pt-2">
+    <div className={cn("px-4 pb-4 pt-2", className)}>
       <form
         onSubmit={handleSubmit}
         onDrop={handleDrop}

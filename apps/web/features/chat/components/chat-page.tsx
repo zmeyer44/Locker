@@ -272,8 +272,8 @@ export function ChatPage({ workspaceSlug }: { workspaceSlug: string }) {
         {messages.length === 0 && !isStreaming ? (
           <EmptyState onSuggestionClick={handleSuggestionClick} />
         ) : (
-          <ScrollArea className="flex-1">
-            <div>
+          <ScrollArea className="flex-1 mb-[-20px]">
+            <div className="max-w-3xl mx-auto w-full">
               {messages.map((message: UIMessage) => (
                 <ChatMessage
                   key={message.id}
@@ -299,6 +299,7 @@ export function ChatPage({ workspaceSlug }: { workspaceSlug: string }) {
 
         {/* Input */}
         <ChatInput
+          className="z-20 relative"
           value={inputValue}
           onChange={setInputValue}
           onSubmit={handleSend}
