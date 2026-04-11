@@ -300,10 +300,13 @@ export const storesRouter = createRouter({
         }
 
         if (!existingSettings) {
-          await tx.insert(workspaceStorageSettings).values({
-            workspaceId: ctx.workspaceId,
-            primaryStoreId: store!.id,
-          });
+          await tx
+            .insert(workspaceStorageSettings)
+            .values({
+              workspaceId: ctx.workspaceId,
+              primaryStoreId: store!.id,
+            })
+            .onConflictDoNothing();
         }
 
         return { id: store!.id };
