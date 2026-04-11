@@ -445,7 +445,7 @@ export async function ingestFromReadOnlyStore(params: {
         sourceStoreId: pending.storeId,
       });
       ingested += 1;
-    } catch (error) {
+    } catch {
       await db
         .update(fileBlobs)
         .set({
@@ -460,7 +460,6 @@ export async function ingestFromReadOnlyStore(params: {
           updatedAt: new Date(),
         })
         .where(eq(files.id, pending.fileId));
-      throw error;
     }
   }
 

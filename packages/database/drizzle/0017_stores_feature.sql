@@ -161,6 +161,104 @@ UPDATE "files" SET "blob_id" = "id";
 
 ALTER TABLE "files" ALTER COLUMN "blob_id" SET NOT NULL;
 --> statement-breakpoint
+
+-- Migrate active BYOB configs into stores + store_secrets + workspace_storage_settings.
+-- Must happen BEFORE storage_config_id is dropped from files.
+INSERT INTO "stores" (
+	"id",
+	"workspace_id",
+	"name",
+	"provider",
+	"credential_source",
+	"status",
+	"write_mode",
+	"ingest_mode",
+	"read_priority",
+	"config",
+	"last_tested_at",
+	"created_at",
+	"updated_at"
+)
+SELECT
+	wsc."id",
+	wsc."workspace_id",
+	'BYOB ' || wsc."provider",
+	CASE wsc."provider"
+		WHEN 'vercel' THEN 'vercel_blob'::"store_provider"
+		ELSE wsc."provider"::"store_provider"
+	END,
+	'store'::"store_credential_source",
+	'active'::"store_status",
+	'write'::"store_write_mode",
+	'none'::"store_ingest_mode",
+	100,
+	jsonb_build_object(
+		'bucket', wsc."bucket",
+		'region', wsc."region",
+		'endpoint', wsc."endpoint"
+	),
+	wsc."last_tested_at",
+	wsc."created_at",
+	wsc."updated_at"
+FROM "workspace_storage_configs" wsc
+WHERE wsc."is_active" = true;
+--> statement-breakpoint
+
+INSERT INTO "store_secrets" (
+	"store_id",
+	"encrypted_credentials",
+	"created_at",
+	"updated_at"
+)
+SELECT
+	wsc."id",
+	wsc."encrypted_credentials",
+	wsc."created_at",
+	wsc."updated_at"
+FROM "workspace_storage_configs" wsc
+WHERE wsc."is_active" = true;
+--> statement-breakpoint
+
+INSERT INTO "workspace_storage_settings" (
+	"workspace_id",
+	"primary_store_id",
+	"created_at",
+	"updated_at"
+)
+SELECT
+	wsc."workspace_id",
+	wsc."id",
+	wsc."created_at",
+	wsc."updated_at"
+FROM "workspace_storage_configs" wsc
+WHERE wsc."is_active" = true;
+--> statement-breakpoint
+
+-- Create blob_locations for files that were stored in BYOB buckets.
+INSERT INTO "blob_locations" (
+	"blob_id",
+	"store_id",
+	"storage_path",
+	"state",
+	"origin",
+	"last_verified_at",
+	"created_at",
+	"updated_at"
+)
+SELECT
+	f."blob_id",
+	f."storage_config_id",
+	f."storage_path",
+	CASE WHEN f."status" = 'ready' THEN 'available'::"blob_location_state" ELSE 'pending'::"blob_location_state" END,
+	'primary_upload'::"blob_location_origin",
+	f."updated_at",
+	f."created_at",
+	f."updated_at"
+FROM "files" f
+WHERE f."storage_config_id" IS NOT NULL
+  AND EXISTS (SELECT 1 FROM "stores" s WHERE s."id" = f."storage_config_id");
+--> statement-breakpoint
+
 ALTER TABLE "files" DROP CONSTRAINT IF EXISTS "files_storage_config_id_workspace_storage_configs_id_fk";
 --> statement-breakpoint
 ALTER TABLE "files" DROP COLUMN IF EXISTS "storage_config_id";

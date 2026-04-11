@@ -174,7 +174,7 @@ function buildRuntimeConfig(input: z.infer<typeof storePayloadSchema>): Workspac
 
 async function testStoreConnection(input: z.infer<typeof storePayloadSchema>) {
   const storage = createStorageFromConfig(buildRuntimeConfig(input));
-  const testPath = `.locker-store-test-${Date.now()}`;
+  const testPath = `.locker-store-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   await storage.upload({
     path: testPath,
     data: Buffer.from("locker-store-test"),

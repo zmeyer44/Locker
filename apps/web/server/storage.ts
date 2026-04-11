@@ -333,27 +333,32 @@ export async function createDefaultStoreForWorkspace(params: {
     baseConfig.baseDir = process.env.LOCAL_BLOB_DIR ?? "./local-blobs";
   }
 
-  const [store] = await db
-    .insert(stores)
-    .values({
-      workspaceId: params.workspaceId,
-      name: getDefaultStoreName(provider),
-      provider,
-      credentialSource: "platform",
-      status: "active",
-      writeMode: "write",
-      ingestMode: "none",
-      readPriority: 100,
-      config: baseConfig,
-    })
-    .returning({ id: stores.id });
+  return db.transaction(async (tx) => {
+    const [store] = await tx
+      .insert(stores)
+      .values({
+        workspaceId: params.workspaceId,
+        name: getDefaultStoreName(provider),
+        provider,
+        credentialSource: "platform",
+        status: "active",
+        writeMode: "write",
+        ingestMode: "none",
+        readPriority: 100,
+        config: baseConfig,
+      })
+      .returning({ id: stores.id });
 
-  await db.insert(workspaceStorageSettings).values({
-    workspaceId: params.workspaceId,
-    primaryStoreId: store!.id,
+    await tx
+      .insert(workspaceStorageSettings)
+      .values({
+        workspaceId: params.workspaceId,
+        primaryStoreId: store!.id,
+      })
+      .onConflictDoNothing();
+
+    return { storeId: store!.id };
   });
-
-  return { storeId: store!.id };
 }
 
 export async function saveStoreSecret(storeId: string, credentials: unknown) {
