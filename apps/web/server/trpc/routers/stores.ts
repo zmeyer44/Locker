@@ -518,7 +518,7 @@ export const storesRouter = createRouter({
     }),
 
   ingest: workspaceAdminProcedure
-    .input(z.object({ storeId: z.string().uuid() }))
+    .input(z.object({ storeId: z.string().uuid(), clearTombstones: z.boolean().optional() }))
     .mutation(async ({ ctx, input }) => {
       const { store } = await getStoreById(input.storeId);
       if (store.workspaceId !== ctx.workspaceId) {
@@ -528,6 +528,7 @@ export const storesRouter = createRouter({
       return ingestFromReadOnlyStore({
         storeId: input.storeId,
         triggeredByUserId: ctx.userId,
+        clearTombstones: input.clearTombstones,
       });
     }),
 });

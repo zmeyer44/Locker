@@ -1,4 +1,5 @@
 import path from "path";
+import { lookup as mimeLookup } from "mime-types";
 import { and, eq, inArray } from "drizzle-orm";
 import {
   blobLocations,
@@ -357,6 +358,7 @@ export async function syncWorkspaceStores(params: {
 export async function ingestFromReadOnlyStore(params: {
   storeId: string;
   triggeredByUserId?: string;
+  clearTombstones?: boolean;
   db?: Database;
 }): Promise<{ ingested: number; skipped: number }> {
   const db = getDatabase(params.db);
@@ -378,6 +380,12 @@ export async function ingestFromReadOnlyStore(params: {
 
   if (!workspace) {
     throw new Error("Workspace not found");
+  }
+
+  if (params.clearTombstones) {
+    await db
+      .delete(ingestTombstones)
+      .where(eq(ingestTombstones.storeId, store.id));
   }
 
   const config = (store.config as Record<string, unknown> | null) ?? {};
@@ -407,13 +415,14 @@ export async function ingestFromReadOnlyStore(params: {
     }
 
     const name = path.basename(object.path) || "imported-file";
+    const mimeType = mimeLookup(name) || "application/octet-stream";
     const pending = await createPendingFileUpload({
       db,
       workspaceId: store.workspaceId,
       userId: params.triggeredByUserId ?? workspace.ownerId,
       folderId: null,
       fileName: name,
-      mimeType: "application/octet-stream",
+      mimeType,
       size: object.size,
       status: "uploading",
     });
@@ -423,7 +432,7 @@ export async function ingestFromReadOnlyStore(params: {
       await pending.storage.upload({
         path: pending.storagePath,
         data: sourceObject.data,
-        contentType: sourceObject.contentType,
+        contentType: mimeType,
       });
 
       await markFileUploadReady({ db, fileId: pending.fileId });
@@ -454,7 +463,8 @@ export async function ingestFromReadOnlyStore(params: {
       }).catch(() => {});
 
       ingested += 1;
-    } catch {
+    } catch (err) {
+      console.error(`[ingest] Failed to ingest "${object.path}":`, err);
       await db.transaction(async (tx) => {
         await tx
           .delete(blobLocations)

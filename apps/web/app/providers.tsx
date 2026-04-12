@@ -10,6 +10,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { trpc } from "@/lib/trpc/client";
 import dynamic from "next/dynamic";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { ModalProvider } from "@/components/modal/provider";
 
 const GoogleAnalytics = dynamic(
   () =>
@@ -68,10 +69,12 @@ export function Providers({ children }: { children: ReactNode }) {
       >
         <trpc.Provider client={trpcClient} queryClient={queryClient}>
           <QueryClientProvider client={queryClient}>
-            <TooltipProvider delayDuration={150}>
-              {children}
-              <Toaster position="bottom-right" />
-            </TooltipProvider>
+            <ModalProvider>
+              <TooltipProvider delayDuration={150}>
+                {children}
+                <Toaster position="bottom-right" />
+              </TooltipProvider>
+            </ModalProvider>
             <GoogleAnalytics />
           </QueryClientProvider>
         </trpc.Provider>

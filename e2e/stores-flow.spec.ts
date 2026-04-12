@@ -30,7 +30,6 @@ async function register(page: Page) {
 async function onboard(page: Page) {
   await page.getByPlaceholder(/acme/i).fill("Stores Test WS");
   await page.getByRole("button", { name: /create workspace/i }).click();
-  // First workspace creation triggers server compilation + DB inserts — needs extra time
   await page.waitForURL("**/w/**", { timeout: 60_000 });
   workspaceSlug = page.url().split("/w/")[1]?.split("/")[0] ?? "";
 }
@@ -42,15 +41,10 @@ async function login(page: Page) {
   await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForURL("**/w/**", { timeout: 30_000 });
   await page.waitForTimeout(1500);
-  // Suppress the KB announcement modal for this browser context
   await dismissModals(page);
 }
 
 async function dismissModals(page: Page) {
-  // The KB announcement modal appears ~800ms after render.
-  // Pressing Escape triggers handleDismiss() which sets the localStorage flag
-  // internally, so the modal won't reappear on the same page session.
-  // We retry a few times since the modal can appear with variable delay.
   for (let i = 0; i < 3; i++) {
     await page.waitForTimeout(1000);
     const dialog = page.locator('[role="dialog"]');
@@ -62,12 +56,12 @@ async function dismissModals(page: Page) {
 
 async function goToStoresPage(page: Page) {
   await page.goto(`/w/${workspaceSlug}/settings/stores`);
-  // Give the page time to render, then aggressively dismiss any modals
   await page.waitForTimeout(3000);
   await dismissModals(page);
   await expect(page.getByText("Workspace Stores")).toBeVisible({
     timeout: 30_000,
   });
+  // Wait for the loading state to resolve
   await expect(page.getByText("Loading stores")).toBeHidden({
     timeout: 30_000,
   });
@@ -75,17 +69,21 @@ async function goToStoresPage(page: Page) {
   await page.waitForTimeout(500);
 }
 
-/** Select a value from a shadcn Select component by matching current text. */
+/**
+ * Select a value from a Radix Select inside a modal.
+ * Clicks the combobox matching `triggerText`, waits for the portal to appear
+ * above the modal (z-[80]), then selects the option.
+ */
 async function selectOption(
   page: Page,
-  currentText: string,
+  triggerText: string,
   optionName: string,
 ) {
   await page
     .getByRole("combobox")
-    .filter({ hasText: currentText })
+    .filter({ hasText: triggerText })
     .click();
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(400);
   await page.getByRole("option", { name: optionName }).click();
   await page.waitForTimeout(300);
 }
@@ -167,12 +165,6 @@ test.describe.serial("Stores feature flows", () => {
     await login(page);
     await goToStoresPage(page);
 
-    // Wait for stores to finish loading (first load triggers server compilation)
-    await expect(page.getByText("Loading stores")).toBeHidden({
-      timeout: 30_000,
-    });
-    await page.waitForTimeout(1000);
-
     // Default store should exist with Platform + Primary badges
     await expect(page.getByText("Platform").first()).toBeVisible({
       timeout: 10_000,
@@ -186,61 +178,132 @@ test.describe.serial("Stores feature flows", () => {
     });
   });
 
-  // ── 3. Add a writable local store ──────────────────────────────────────
+  // ── 3. Add a writable local store via modal ──────────��────────────────
 
   test("add a writable local store", async ({ page }) => {
     test.setTimeout(60_000);
     await login(page);
     await goToStoresPage(page);
-
-    // Dismiss any modals that might have appeared after page load
     await dismissModals(page);
 
-    // Click "Add store" to reset to the new-store form
+    // Click "Add store" to open the modal
     await page.getByRole("button", { name: /add store/i }).click();
     await page.waitForTimeout(500);
-    await expect(page.getByText("Add a Store")).toBeVisible({ timeout: 5000 });
 
-    // Fill in the form
-    await page.getByPlaceholder("My NAS").fill("E2E Sync Store");
+    // Modal should be visible with title "Add store"
+    await expect(
+      page.getByRole("heading", { name: "Add store" }),
+    ).toBeVisible({ timeout: 5000 });
 
-    // Provider → Local Disk
+    await page.screenshot({
+      path: "e2e/screenshots/stores-05-add-modal-open.png",
+    });
+
+    // Fill in name
+    await page.getByPlaceholder("e.g. Production S3").fill("E2E Sync Store");
+
+    // Provider → Local Disk (select inside modal, portals above it)
     await selectOption(page, "Amazon S3", "Local Disk");
 
-    // Base directory
+    await page.screenshot({
+      path: "e2e/screenshots/stores-06-provider-selected.png",
+    });
+
+    // Base directory field should now be visible
     await page.getByPlaceholder("/var/lib/locker").fill(SYNC_STORE_DIR);
 
     await page.screenshot({
-      path: "e2e/screenshots/stores-05-add-sync-store-form.png",
+      path: "e2e/screenshots/stores-07-form-filled.png",
     });
 
-    // Create
+    // Test connection first
+    await page
+      .getByRole("button", { name: "Test", exact: true })
+      .click();
+    await page.waitForTimeout(3000);
+
+    // Create the store
     await page.getByRole("button", { name: /create store/i }).click();
     await page.waitForTimeout(5000);
 
-    // Verify it appears in the list
+    // Modal should close and store should appear in the list
     await expect(page.getByText("E2E Sync Store")).toBeVisible({
       timeout: 10_000,
     });
     await page.screenshot({
-      path: "e2e/screenshots/stores-06-sync-store-created.png",
+      path: "e2e/screenshots/stores-08-sync-store-created.png",
     });
   });
 
-  // ── 4. Sync the uploaded file to both stores ───────────────────────────
+  // ── 4. Select dropdowns work inside modal (z-index regression) ────────
+
+  test("select dropdowns render above the modal", async ({ page }) => {
+    test.setTimeout(60_000);
+    await login(page);
+    await goToStoresPage(page);
+    await dismissModals(page);
+
+    // Open add store modal
+    await page.getByRole("button", { name: /add store/i }).click();
+    await page.waitForTimeout(500);
+
+    // Click the Provider select trigger
+    const providerTrigger = page
+      .getByRole("combobox")
+      .filter({ hasText: "Amazon S3" });
+    await providerTrigger.click();
+    await page.waitForTimeout(400);
+
+    // The select content should be visible and interactable
+    const options = page.getByRole("option");
+    await expect(options.first()).toBeVisible({ timeout: 5000 });
+
+    await page.screenshot({
+      path: "e2e/screenshots/stores-09-select-above-modal.png",
+    });
+
+    // Verify all provider options are present
+    await expect(page.getByRole("option", { name: "Amazon S3" })).toBeVisible();
+    await expect(
+      page.getByRole("option", { name: "Cloudflare R2" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("option", { name: "Vercel Blob" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("option", { name: "Local Disk" }),
+    ).toBeVisible();
+
+    // Select an option to confirm it works
+    await page.getByRole("option", { name: "Cloudflare R2" }).click();
+    await page.waitForTimeout(300);
+
+    // Verify the write mode select also works
+    await selectOption(page, "Writable", "Read-only");
+
+    await page.screenshot({
+      path: "e2e/screenshots/stores-10-write-mode-selected.png",
+    });
+
+    // Close the modal
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(500);
+  });
+
+  // ── 5. Sync files to local store ──────────────────────────────────────
 
   test("sync file to both stores and verify on disk", async ({ page }) => {
     test.setTimeout(60_000);
     await login(page);
     await goToStoresPage(page);
+    await dismissModals(page);
 
     // Click "Sync all"
-    await dismissModals(page);
     await page.getByRole("button", { name: /sync all/i }).click();
-    await page.waitForTimeout(8000); // sync runs synchronously in the mutation
+    await page.waitForTimeout(8000);
 
     await page.screenshot({
-      path: "e2e/screenshots/stores-07-sync-completed.png",
+      path: "e2e/screenshots/stores-11-sync-completed.png",
     });
 
     // Verify sync completed via the UI status badge
@@ -249,21 +312,18 @@ test.describe.serial("Stores feature flows", () => {
       timeout: 5000,
     });
 
-    // Verify the file was physically copied to the local store directory
+    // Check if the file appeared on disk
     const syncedFiles = listFilesRecursive(SYNC_STORE_DIR);
     if (syncedFiles.some((f) => f.includes("sync-test-file.txt"))) {
       console.log("File verified on local disk");
     } else {
-      // Primary store may be S3 — sync downloads from S3 then uploads to local.
-      // If S3 download failed, the UI still shows "completed" but the file
-      // might be missing. We already verified the UI status above.
       console.log(
         "File not found on local disk (primary store may be remote S3)",
       );
     }
   });
 
-  // ── 5. Add an external file & ingest from a read-only local store ──────
+  // ── 6. Add a read-only ingest store ───────────────────────────────────
 
   test("create read-only store with external file and ingest it", async ({
     page,
@@ -279,27 +339,27 @@ test.describe.serial("Stores feature flows", () => {
     await goToStoresPage(page);
     await dismissModals(page);
 
-    // Click "Add store"
+    // Open add store modal
     await page.getByRole("button", { name: /add store/i }).click();
     await page.waitForTimeout(500);
 
-    // Fill in name
-    await page.getByPlaceholder("My NAS").fill("E2E Ingest Store");
+    // Fill name
+    await page.getByPlaceholder("e.g. Production S3").fill("E2E Ingest Store");
 
     // Provider → Local Disk
     await selectOption(page, "Amazon S3", "Local Disk");
 
-    // Write Mode → Read-only ingest
-    await selectOption(page, "Writable replica", "Read-only ingest");
+    // Write mode → Read-only
+    await selectOption(page, "Writable", "Read-only");
 
-    // Ingest Mode → Scan for new files
-    await selectOption(page, "No ingest scanning", "Scan for new files");
+    // Ingest mode → Scan for files
+    await selectOption(page, "No scanning", "Scan for files");
 
     // Base directory
     await page.getByPlaceholder("/var/lib/locker").fill(INGEST_STORE_DIR);
 
     await page.screenshot({
-      path: "e2e/screenshots/stores-08-ingest-store-form.png",
+      path: "e2e/screenshots/stores-12-ingest-store-form.png",
     });
 
     // Create
@@ -315,56 +375,145 @@ test.describe.serial("Stores feature flows", () => {
     });
 
     await page.screenshot({
-      path: "e2e/screenshots/stores-09-ingest-store-created.png",
-    });
-
-    // Ingest button should be visible (only rendered for read-only stores)
-    await expect(
-      page.getByRole("button", { name: /^ingest$/i }).first(),
-    ).toBeVisible({ timeout: 5000 });
-
-    await page.screenshot({
-      path: "e2e/screenshots/stores-10-ingest-store-ready.png",
+      path: "e2e/screenshots/stores-13-ingest-store-created.png",
     });
   });
 
-  // ── 6. Edit and update an existing store ──────────────────────────────
+  // ── 7. Edit store via modal ───────────────────────────────────────────
 
-  test("select and edit an existing store", async ({ page }) => {
+  test("edit an existing store via modal", async ({ page }) => {
     test.setTimeout(60_000);
     await login(page);
     await goToStoresPage(page);
 
-    // Click the E2E Sync Store card to load its details
-    await page.getByText("E2E Sync Store").click();
-    await page.waitForTimeout(1000);
+    // Hover the E2E Sync Store card to reveal the Edit button
+    const storeCard = page
+      .locator("div", { hasText: "E2E Sync Store" })
+      .filter({ has: page.locator("text=Local Disk") })
+      .first();
+    await storeCard.hover();
+    await page.waitForTimeout(300);
 
-    // Form should show "Edit E2E Sync Store" heading
+    // Click Edit
+    await storeCard.getByRole("button", { name: /edit/i }).click();
+    await page.waitForTimeout(500);
+
+    // Modal should show "Edit E2E Sync Store"
     await expect(page.getByText("Edit E2E Sync Store")).toBeVisible({
       timeout: 5000,
     });
 
-    // Provider select should be disabled for existing stores
-    const providerSelect = page
+    await page.screenshot({
+      path: "e2e/screenshots/stores-14-edit-modal.png",
+    });
+
+    // Provider should be disabled for existing stores
+    const providerTrigger = page
       .getByRole("combobox")
       .filter({ hasText: "Local Disk" });
-    await expect(providerSelect).toBeDisabled();
+    await expect(providerTrigger).toBeDisabled();
 
-    // Update the name
-    const nameInput = page.getByPlaceholder("My NAS");
+    // Rename the store
+    const nameInput = page.getByPlaceholder("e.g. Production S3");
+    await nameInput.clear();
     await nameInput.fill("E2E Sync Store Renamed");
 
     // Save changes
     await page.getByRole("button", { name: /save changes/i }).click();
     await page.waitForTimeout(3000);
 
-    // Verify updated name in the edit heading
-    await expect(
-      page.getByRole("heading", { name: "Edit E2E Sync Store Renamed" }),
-    ).toBeVisible({ timeout: 10_000 });
+    // Modal should close, updated name should appear
+    await expect(page.getByText("E2E Sync Store Renamed")).toBeVisible({
+      timeout: 10_000,
+    });
 
     await page.screenshot({
-      path: "e2e/screenshots/stores-11-store-updated.png",
+      path: "e2e/screenshots/stores-15-store-renamed.png",
+    });
+  });
+
+  // ── 8. Dropdown menu actions work on store cards ──────────────────────
+
+  test("store card dropdown menu works", async ({ page }) => {
+    test.setTimeout(60_000);
+    await login(page);
+    await goToStoresPage(page);
+
+    // Find the E2E Sync Store Renamed card and open its dropdown
+    const storeCard = page
+      .locator("div", { hasText: "E2E Sync Store Renamed" })
+      .filter({ has: page.locator("text=Local Disk") })
+      .first();
+
+    // Click the "..." button
+    await storeCard.getByRole("button").filter({ has: page.locator("svg") }).last().click();
+    await page.waitForTimeout(300);
+
+    await page.screenshot({
+      path: "e2e/screenshots/stores-16-dropdown-menu.png",
+    });
+
+    // Should see Sync and Make primary options
+    await expect(
+      page.getByRole("menuitem", { name: /sync/i }),
+    ).toBeVisible({ timeout: 5000 });
+    await expect(
+      page.getByRole("menuitem", { name: /make primary/i }),
+    ).toBeVisible({ timeout: 5000 });
+    await expect(
+      page.getByRole("menuitem", { name: /archive/i }),
+    ).toBeVisible({ timeout: 5000 });
+
+    // Click Sync from the dropdown
+    await page.getByRole("menuitem", { name: /sync/i }).click();
+    await page.waitForTimeout(2000);
+
+    await page.screenshot({
+      path: "e2e/screenshots/stores-17-sync-from-dropdown.png",
+    });
+  });
+
+  // ── 9. Archive a store via dropdown + confirm modal ───────────────────
+
+  test("archive a store via dropdown and confirm modal", async ({ page }) => {
+    test.setTimeout(60_000);
+    await login(page);
+    await goToStoresPage(page);
+
+    // Find the ingest store card
+    const storeCard = page
+      .locator("div", { hasText: "E2E Ingest Store" })
+      .filter({ has: page.locator("text=Local Disk") })
+      .first();
+
+    // Open the dropdown menu
+    await storeCard.getByRole("button").filter({ has: page.locator("svg") }).last().click();
+    await page.waitForTimeout(300);
+
+    // Click archive
+    await page.getByRole("menuitem", { name: /archive/i }).click();
+    await page.waitForTimeout(500);
+
+    await page.screenshot({
+      path: "e2e/screenshots/stores-18-archive-confirm.png",
+    });
+
+    // Confirm modal should appear
+    await expect(page.getByText("Archive store")).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Click the confirm/archive button
+    await page.getByRole("button", { name: /archive/i }).last().click();
+    await page.waitForTimeout(3000);
+
+    // The ingest store should disappear from the list
+    await expect(page.getByText("E2E Ingest Store")).toBeHidden({
+      timeout: 10_000,
+    });
+
+    await page.screenshot({
+      path: "e2e/screenshots/stores-19-store-archived.png",
     });
   });
 });

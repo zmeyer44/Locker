@@ -11,6 +11,7 @@ import {
   AbortMultipartUploadCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl as awsGetSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { Upload } from "@aws-sdk/lib-storage";
 import type { StorageProvider } from "./interface";
 import { Readable } from "node:stream";
 
@@ -54,15 +55,29 @@ export class S3StorageAdapter implements StorageProvider {
       ? params.data
       : Readable.fromWeb(params.data as any);
 
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: params.path,
-        Body: body,
-        ContentType: params.contentType,
-        Metadata: params.metadata,
-      }),
-    );
+    if (Buffer.isBuffer(body)) {
+      await this.client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: params.path,
+          Body: body,
+          ContentType: params.contentType,
+          Metadata: params.metadata,
+        }),
+      );
+    } else {
+      const upload = new Upload({
+        client: this.client,
+        params: {
+          Bucket: this.bucket,
+          Key: params.path,
+          Body: body,
+          ContentType: params.contentType,
+          Metadata: params.metadata,
+        },
+      });
+      await upload.done();
+    }
 
     return {
       url: `https://${this.bucket}.s3.${process.env.AWS_REGION ?? "us-east-1"}.amazonaws.com/${params.path}`,
