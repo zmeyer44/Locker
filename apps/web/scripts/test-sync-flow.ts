@@ -89,8 +89,7 @@ function log(msg: string) {
 }
 
 function fail(msg: string): never {
-  console.error(`[sync-test] FAIL: ${msg}`);
-  process.exit(1);
+  throw new Error(msg);
 }
 
 function assert(cond: boolean, msg: string) {
