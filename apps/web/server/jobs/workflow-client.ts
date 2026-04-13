@@ -1,12 +1,9 @@
-let client: any = null;
+import { Render } from "@renderinc/sdk";
 
-async function getClient(): Promise<any> {
+let client: Render | null = null;
+
+function getClient(): Render {
   if (!client) {
-    // Dynamic import — @renderinc/sdk is only installed when a workflow
-    // backend is configured. Using a variable prevents TypeScript from
-    // resolving the module at compile time.
-    const sdkModule = "@renderinc/sdk";
-    const { Render } = await import(/* webpackIgnore: true */ sdkModule);
     client = new Render();
   }
   return client;
@@ -22,7 +19,7 @@ export async function dispatchSyncWorkspace(params: {
   targetStoreId?: string;
   triggeredByUserId?: string;
 }): Promise<{ taskRunId: string }> {
-  const render = await getClient();
+  const render = getClient();
   const started = await render.workflows.startTask(
     `${slug()}/syncWorkspace`,
     [
