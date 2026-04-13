@@ -573,6 +573,15 @@ export default function StoresSettingsPage() {
   const modal = useModal();
   const utils = trpc.useUtils();
   const { data: stores = [], isLoading } = trpc.stores.list.useQuery();
+  const sortedStores = useMemo(
+    () =>
+      [...stores].sort((a, b) => {
+        const aP = a.credentialSource === "platform" ? 0 : 1;
+        const bP = b.credentialSource === "platform" ? 0 : 1;
+        return aP - bP;
+      }),
+    [stores],
+  );
   const { data: capabilities } = useRuntime();
   const isServerless = capabilities ? !capabilities.longRunningSupported : false;
   const canSync = capabilities
@@ -818,13 +827,163 @@ export default function StoresSettingsPage() {
               <span>No stores configured. Add one to get started.</span>
             </button>
           ) : (
-            stores.map((store, i) => {
+            sortedStores.map((store, i) => {
               const meta = PROVIDER_META[store.provider];
               const Icon = meta.icon;
               const activity =
                 busyStores[store.id] ?? busyStores["_all"];
               const isBusy = !!activity;
 
+              /* ── Premium Locker Cloud card ─────────────────── */
+              if (store.credentialSource === "platform") {
+                return (
+                  <motion.div
+                    key={store.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                    className="group relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/[0.04] via-transparent to-transparent"
+                  >
+                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+
+                    <div className="p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3.5">
+                          <div className="relative flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                            <Cloud
+                              className={cn(
+                                "size-5 text-primary transition-opacity",
+                                isBusy && "opacity-40",
+                              )}
+                            />
+                            {isBusy && (
+                              <Loader2 className="absolute size-5 animate-spin text-primary" />
+                            )}
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2.5">
+                              <h3 className="text-[15px] font-semibold tracking-tight">
+                                {store.name}
+                              </h3>
+                              {store.isPrimary && (
+                                <Badge className="text-[10px] px-1.5 py-0">
+                                  Primary
+                                </Badge>
+                              )}
+                              <span
+                                className={cn(
+                                  "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                                  "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                                )}
+                              >
+                                <span className="relative flex size-1.5">
+                                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                                  <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+                                </span>
+                                Managed
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[13px] text-muted-foreground">
+                              Fully managed storage with automatic replication
+                              and encryption
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditModal(store)}
+                            className="text-xs opacity-0 transition-opacity group-hover:opacity-100"
+                          >
+                            Edit
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon-sm">
+                                <MoreHorizontal className="size-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                disabled={isBusy || !canSync}
+                                onClick={() =>
+                                  syncStores.mutate({ storeId: store.id })
+                                }
+                                title={
+                                  !canSync
+                                    ? "Sync is not available on serverless runtimes without a task queue"
+                                    : undefined
+                                }
+                              >
+                                <RefreshCw className="mr-2 size-3.5" />
+                                Sync
+                              </DropdownMenuItem>
+                              {!store.isPrimary &&
+                                store.writeMode === "write" && (
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      setPrimary.mutate({ id: store.id })
+                                    }
+                                  >
+                                    <ShieldCheck className="mr-2 size-3.5" />
+                                    Make primary
+                                  </DropdownMenuItem>
+                                )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+
+                      <div
+                        className={cn(
+                          "mt-4 flex items-center gap-4 rounded-lg px-3.5 py-2.5 text-xs",
+                          "bg-muted/50",
+                        )}
+                      >
+                        {isBusy ? (
+                          <span className="font-medium text-primary">
+                            {activity.action}...
+                          </span>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-1.5">
+                              <Icon
+                                className={cn("size-3.5", meta.color)}
+                              />
+                              <span className="font-medium">
+                                {meta.label}
+                              </span>
+                            </div>
+                            <div className="h-3 w-px bg-border" />
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground">
+                                Synced
+                              </span>
+                              <span className="font-medium">
+                                {relativeTime(store.lastSyncedAt)}
+                              </span>
+                            </div>
+                            <div className="h-3 w-px bg-border" />
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground">
+                                Tested
+                              </span>
+                              <span className="font-medium">
+                                {relativeTime(store.lastTestedAt)}
+                              </span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              }
+
+              /* ── Standard store card ── */
               return (
                 <motion.div
                   key={store.id}
@@ -872,14 +1031,6 @@ export default function StoresSettingsPage() {
                             className="text-[10px] px-1.5 py-0"
                           >
                             Read-only
-                          </Badge>
-                        )}
-                        {store.credentialSource === "platform" && (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] px-1.5 py-0"
-                          >
-                            Platform
                           </Badge>
                         )}
                       </div>

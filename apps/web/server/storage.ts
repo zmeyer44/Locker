@@ -41,19 +41,8 @@ const providerNameMap = {
   local: "local",
 } as const;
 
-function getDefaultStoreName(provider: StoreRow["provider"]): string {
-  switch (provider) {
-    case "local":
-      return "Local Storage";
-    case "s3":
-      return "Default S3";
-    case "r2":
-      return "Default R2";
-    case "vercel_blob":
-      return "Default Blob";
-    default:
-      return "Default Storage";
-  }
+function getDefaultStoreName(_provider: StoreRow["provider"]): string {
+  return "Locker Cloud";
 }
 
 export async function getPrimaryStore(workspaceId: string): Promise<{
