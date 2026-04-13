@@ -4,8 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "tsx src/index.ts",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },
@@ -15,10 +14,10 @@
     "@locker/database": "workspace:*",
     "@locker/storage": "workspace:*",
     "@locker/common": "workspace:*",
-    "drizzle-orm": "^0.45.1"
+    "drizzle-orm": "^0.45.1",
+    "tsx": "^4.19.0"
   },
   "devDependencies": {
-    "tsx": "^4.19.0",
     "typescript": "^5.9.3"
   }
 }

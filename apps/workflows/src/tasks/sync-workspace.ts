@@ -1,6 +1,6 @@
 import { task } from "@renderinc/sdk/workflows";
 import { syncWorkspaceStores } from "@locker/jobs";
-import { resolveFileSource } from "../resolve-file-source";
+import { resolveFileSource } from "../resolve-file-source.ts";
 
 export const syncWorkspace = task(
   {

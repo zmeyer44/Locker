@@ -1,1 +1,1 @@
-import "./tasks/sync-workspace";
+import "./tasks/sync-workspace.ts";
