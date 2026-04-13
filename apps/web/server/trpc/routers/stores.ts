@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
+  files,
   replicationRuns,
   storeSecrets,
   stores,
@@ -518,6 +519,16 @@ export const storesRouter = createRouter({
       }
 
       if (shouldDelegateToWorkflow()) {
+        const workspaceFiles = await ctx.db
+          .select({ id: files.id })
+          .from(files)
+          .where(
+            and(
+              eq(files.workspaceId, ctx.workspaceId),
+              eq(files.status, "ready"),
+            ),
+          );
+
         const [run] = await ctx.db
           .insert(replicationRuns)
           .values({
@@ -526,6 +537,7 @@ export const storesRouter = createRouter({
             status: "queued",
             targetStoreId: input?.storeId ?? null,
             triggeredByUserId: ctx.userId,
+            totalItems: workspaceFiles.length,
           })
           .returning({ id: replicationRuns.id });
 

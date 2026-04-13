@@ -287,27 +287,6 @@ export async function syncWorkspaceStores(params: {
   const db = getDatabase(params.db);
   let runId: string;
 
-  if (params.runId) {
-    await db
-      .update(replicationRuns)
-      .set({ status: "running", startedAt: new Date(), updatedAt: new Date() })
-      .where(eq(replicationRuns.id, params.runId));
-    runId = params.runId;
-  } else {
-    const [run] = await db
-      .insert(replicationRuns)
-      .values({
-        workspaceId: params.workspaceId,
-        kind: params.kind ?? "manual_sync",
-        status: "running",
-        targetStoreId: params.targetStoreId ?? null,
-        triggeredByUserId: params.triggeredByUserId ?? null,
-        startedAt: new Date(),
-      })
-      .returning({ id: replicationRuns.id });
-    runId = run!.id;
-  }
-
   const workspaceFiles = await db
     .select({ id: files.id })
     .from(files)
@@ -318,17 +297,37 @@ export async function syncWorkspaceStores(params: {
       ),
     );
 
+  if (params.runId) {
+    await db
+      .update(replicationRuns)
+      .set({
+        status: "running",
+        totalItems: workspaceFiles.length,
+        startedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(replicationRuns.id, params.runId));
+    runId = params.runId;
+  } else {
+    const [run] = await db
+      .insert(replicationRuns)
+      .values({
+        workspaceId: params.workspaceId,
+        kind: params.kind ?? "manual_sync",
+        status: "running",
+        totalItems: workspaceFiles.length,
+        targetStoreId: params.targetStoreId ?? null,
+        triggeredByUserId: params.triggeredByUserId ?? null,
+        startedAt: new Date(),
+      })
+      .returning({ id: replicationRuns.id });
+    runId = run!.id;
+  }
+
   let processed = 0;
   let failed = 0;
 
   try {
-    await db
-      .update(replicationRuns)
-      .set({
-        totalItems: workspaceFiles.length,
-        updatedAt: new Date(),
-      })
-      .where(eq(replicationRuns.id, runId));
 
     await runWithConcurrency(workspaceFiles, 3, async (file) => {
       const result = await syncFileToStores({
