@@ -11,7 +11,8 @@ import {
 import { createRouter, workspaceAdminProcedure } from "../init";
 import { createStorageFromConfig, type WorkspaceStorageConfig } from "@locker/storage";
 import { getStoreById, saveStoreSecret, makeWebFileSourceResolver } from "../../storage";
-import { syncWorkspaceStores, ingestFromReadOnlyStore } from "../../stores/sync";
+import { syncWorkspaceStores, ingestFromReadOnlyStore, pullFromStore } from "../../stores/sync";
+import type { ConflictStrategy } from "../../stores/sync";
 import { runtime } from "../../runtime-context";
 import { shouldDelegateToWorkflow } from "../../jobs/dispatch";
 import { dispatchSyncWorkspace } from "../../jobs/workflow-client";
@@ -621,6 +622,111 @@ export const storesRouter = createRouter({
         storeId: input.storeId,
         triggeredByUserId: ctx.userId,
         clearTombstones: input.clearTombstones,
+      });
+    }),
+
+  push: workspaceAdminProcedure
+    .input(
+      z.object({
+        storeId: z.string().uuid().optional(),
+        conflictStrategy: z.enum(["skip", "keep_newer", "overwrite"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!runtime.longRunningSupported && !runtime.taskQueueAvailable) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Push requires a persistent runtime or task queue. Not supported on ${runtime.environment}.`,
+        });
+      }
+
+      if (shouldDelegateToWorkflow()) {
+        const workspaceFiles = await ctx.db
+          .select({ id: files.id })
+          .from(files)
+          .where(
+            and(
+              eq(files.workspaceId, ctx.workspaceId),
+              eq(files.status, "ready"),
+            ),
+          );
+
+        const [run] = await ctx.db
+          .insert(replicationRuns)
+          .values({
+            workspaceId: ctx.workspaceId,
+            kind: "manual_push",
+            status: "queued",
+            targetStoreId: input.storeId ?? null,
+            triggeredByUserId: ctx.userId,
+            totalItems: workspaceFiles.length,
+          })
+          .returning({ id: replicationRuns.id });
+
+        try {
+          await dispatchSyncWorkspace({
+            runId: run!.id,
+            workspaceId: ctx.workspaceId,
+            targetStoreId: input.storeId,
+            triggeredByUserId: ctx.userId,
+            conflictStrategy: input.conflictStrategy,
+          });
+        } catch (err) {
+          await ctx.db
+            .update(replicationRuns)
+            .set({
+              status: "failed",
+              errorMessage:
+                err instanceof Error
+                  ? err.message
+                  : "Failed to dispatch to task queue",
+              completedAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .where(eq(replicationRuns.id, run!.id));
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to dispatch push to task queue",
+          });
+        }
+
+        return { runId: run!.id };
+      }
+
+      return syncWorkspaceStores({
+        workspaceId: ctx.workspaceId,
+        targetStoreId: input.storeId,
+        triggeredByUserId: ctx.userId,
+        conflictStrategy: input.conflictStrategy,
+        kind: "manual_push",
+        resolveFileSource: makeWebFileSourceResolver(),
+      });
+    }),
+
+  pull: workspaceAdminProcedure
+    .input(
+      z.object({
+        storeId: z.string().uuid(),
+        conflictStrategy: z.enum(["skip", "keep_newer", "overwrite"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!runtime.longRunningSupported) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Pull requires a persistent runtime. Not supported on ${runtime.environment}.`,
+        });
+      }
+
+      const { store } = await getStoreById(input.storeId);
+      if (store.workspaceId !== ctx.workspaceId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Store not found" });
+      }
+
+      return pullFromStore({
+        storeId: input.storeId,
+        conflictStrategy: input.conflictStrategy,
+        triggeredByUserId: ctx.userId,
       });
     }),
 });

@@ -13,6 +13,8 @@ import type { StorageProvider } from "@locker/storage";
 import { buildStoragePathForStore, getActiveStores, getStoreById, type StoreRow } from "./store-utils";
 import { buildFolderPath, buildStoreTargetPath, isLegacyObjectKey } from "./path-builder";
 
+export type ConflictStrategy = "skip" | "keep_newer" | "overwrite";
+
 export type FileSourceResolver = (
   fileId: string,
   preferredStoreId?: string,
@@ -116,6 +118,7 @@ export async function syncFileToStores(params: {
   resolveFileSource: FileSourceResolver;
   sourceStoreId?: string;
   targetStoreId?: string;
+  conflictStrategy?: ConflictStrategy;
   runId?: string;
   db?: Database;
 }): Promise<{ synced: number; failed: number; skipped: number }> {
@@ -130,6 +133,7 @@ export async function syncFileToStores(params: {
       status: files.status,
       name: files.name,
       folderId: files.folderId,
+      updatedAt: files.updatedAt,
       objectKey: fileBlobs.objectKey,
     })
     .from(files)
@@ -167,6 +171,7 @@ export async function syncFileToStores(params: {
       storeId: blobLocations.storeId,
       storagePath: blobLocations.storagePath,
       state: blobLocations.state,
+      updatedAt: blobLocations.updatedAt,
     })
     .from(blobLocations)
     .where(eq(blobLocations.blobId, file.blobId));
@@ -231,21 +236,30 @@ export async function syncFileToStores(params: {
     );
     const targetPath = await computeTargetPath(db, targetStore, file);
 
+    const strategy = params.conflictStrategy ?? "skip";
+
     if (
       existing &&
       existing.state === "available" &&
       existing.storagePath === targetPath
     ) {
-      skipped += 1;
-      await upsertRunItem({
-        db,
-        runId: params.runId,
-        blobId: file.blobId,
-        sourceStoreId: source.storeId,
-        targetStoreId: targetStore.id,
-        status: "skipped",
-      });
-      continue;
+      const shouldSkip =
+        strategy === "skip" ||
+        (strategy === "keep_newer" &&
+          file.updatedAt <= (existing.updatedAt ?? new Date(0)));
+
+      if (shouldSkip) {
+        skipped += 1;
+        await upsertRunItem({
+          db,
+          runId: params.runId,
+          blobId: file.blobId,
+          sourceStoreId: source.storeId,
+          targetStoreId: targetStore.id,
+          status: "skipped",
+        });
+        continue;
+      }
     }
 
     await upsertRunItem({
@@ -374,6 +388,7 @@ export async function syncWorkspaceStores(params: {
   resolveFileSource: FileSourceResolver;
   targetStoreId?: string;
   triggeredByUserId?: string;
+  conflictStrategy?: ConflictStrategy;
   kind?: SyncRunKind;
   runId?: string;
   db?: Database;
@@ -435,6 +450,7 @@ export async function syncWorkspaceStores(params: {
         fileId: file.id,
         resolveFileSource: params.resolveFileSource,
         targetStoreId: params.targetStoreId,
+        conflictStrategy: params.conflictStrategy,
         runId,
       });
       processed += 1;

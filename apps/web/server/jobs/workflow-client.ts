@@ -18,6 +18,7 @@ export async function dispatchSyncWorkspace(params: {
   workspaceId: string;
   targetStoreId?: string;
   triggeredByUserId?: string;
+  conflictStrategy?: string;
 }): Promise<{ taskRunId: string }> {
   const render = getClient();
   const started = await render.workflows.startTask(
@@ -27,6 +28,7 @@ export async function dispatchSyncWorkspace(params: {
       params.workspaceId,
       params.targetStoreId ?? null,
       params.triggeredByUserId ?? null,
+      params.conflictStrategy ?? "skip",
     ],
   );
   return { taskRunId: started.taskRunId };

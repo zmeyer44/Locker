@@ -8,6 +8,7 @@ import {
   CircleCheck,
   CircleX,
   Cloud,
+  Download,
   FolderOpen,
   HardDrive,
   Loader2,
@@ -43,6 +44,7 @@ import { Template } from "@/components/modal/template";
 import { Button as ModalButton } from "@/components/button";
 import { useModal } from "@/components/modal/provider";
 import { ConfirmModal } from "@/components/modal/modals/confirm-modal";
+import { SyncOperationModal, type ConflictStrategyValue } from "@/components/modal/modals/sync-operation-modal";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { useRuntime } from "@/hooks/use-runtime";
@@ -630,6 +632,32 @@ export default function StoresSettingsPage() {
     },
   });
 
+  const pushStores = trpc.stores.push.useMutation({
+    onMutate: (vars) => markBusy(vars.storeId, "Pushing"),
+    onSuccess: (_data, vars) => {
+      clearBusy(vars.storeId);
+      toast.success("Push started");
+      invalidate();
+    },
+    onError: (error, vars) => {
+      clearBusy(vars.storeId);
+      toast.error(error.message);
+    },
+  });
+
+  const pullStore = trpc.stores.pull.useMutation({
+    onMutate: (vars) => markBusy(vars.storeId, "Pulling"),
+    onSuccess: (_data, vars) => {
+      clearBusy(vars.storeId);
+      toast.success("Pull started");
+      invalidate();
+    },
+    onError: (error, vars) => {
+      clearBusy(vars.storeId);
+      toast.error(error.message);
+    },
+  });
+
   const removeStore = trpc.stores.remove.useMutation({
     onSuccess: () => {
       toast.success("Store archived");
@@ -723,16 +751,25 @@ export default function StoresSettingsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => syncStores.mutate({})}
-              disabled={syncStores.isPending || isRunActive || !canSync}
-              title={!canSync ? "Sync is not available on serverless runtimes without a task queue" : undefined}
+              onClick={() =>
+                modal.show(
+                  <SyncOperationModal
+                    operation="push"
+                    onConfirm={(strategy) =>
+                      pushStores.mutate({ conflictStrategy: strategy })
+                    }
+                  />,
+                )
+              }
+              disabled={pushStores.isPending || isRunActive || !canSync}
+              title={!canSync ? "Push is not available on serverless runtimes without a task queue" : undefined}
             >
-              {syncStores.isPending || isRunActive ? (
+              {pushStores.isPending || isRunActive ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
-                <RefreshCw className="size-4" />
+                <Upload className="size-4" />
               )}
-              {syncStores.isPending ? "Starting..." : "Sync all"}
+              {pushStores.isPending ? "Starting..." : "Push all"}
             </Button>
             <Button size="sm" onClick={openAddModal}>
               <Plus className="size-4" />
@@ -921,16 +958,52 @@ export default function StoresSettingsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            disabled={isBusy || !canSync}
-                            onClick={() =>
-                              syncStores.mutate({ storeId: store.id })
-                            }
-                            title={!canSync ? "Sync is not available on serverless runtimes without a task queue" : undefined}
-                          >
-                            <RefreshCw className="mr-2 size-3.5" />
-                            Sync
-                          </DropdownMenuItem>
+                          {store.writeMode === "write" && (
+                            <>
+                              <DropdownMenuItem
+                                disabled={isBusy || !canSync}
+                                onClick={() =>
+                                  modal.show(
+                                    <SyncOperationModal
+                                      operation="push"
+                                      storeName={store.name}
+                                      onConfirm={(strategy) =>
+                                        pushStores.mutate({
+                                          storeId: store.id,
+                                          conflictStrategy: strategy,
+                                        })
+                                      }
+                                    />,
+                                  )
+                                }
+                                title={!canSync ? "Push is not available on serverless runtimes without a task queue" : undefined}
+                              >
+                                <Upload className="mr-2 size-3.5" />
+                                Push
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                disabled={isBusy || isServerless}
+                                onClick={() =>
+                                  modal.show(
+                                    <SyncOperationModal
+                                      operation="pull"
+                                      storeName={store.name}
+                                      onConfirm={(strategy) =>
+                                        pullStore.mutate({
+                                          storeId: store.id,
+                                          conflictStrategy: strategy,
+                                        })
+                                      }
+                                    />,
+                                  )
+                                }
+                                title={isServerless ? "Pull is not available on serverless runtimes" : undefined}
+                              >
+                                <Download className="mr-2 size-3.5" />
+                                Pull
+                              </DropdownMenuItem>
+                            </>
+                          )}
                           {store.writeMode === "read_only" && (
                             <>
                               <DropdownMenuItem
@@ -940,7 +1013,7 @@ export default function StoresSettingsPage() {
                                 }
                                 title={isServerless ? "Ingest is not available on serverless runtimes" : undefined}
                               >
-                                <Upload className="mr-2 size-3.5" />
+                                <Download className="mr-2 size-3.5" />
                                 Ingest
                               </DropdownMenuItem>
                               <DropdownMenuItem

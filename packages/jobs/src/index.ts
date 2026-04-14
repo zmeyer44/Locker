@@ -14,6 +14,7 @@ export {
   syncWorkspaceStores,
   syncFileToStores,
   type FileSourceResolver,
+  type ConflictStrategy,
 } from "./sync-workspace";
 
 export {

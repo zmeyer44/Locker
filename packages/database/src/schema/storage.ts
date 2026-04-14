@@ -71,6 +71,8 @@ export const replicationRunKindEnum = pgEnum('replication_run_kind', [
   'repair',
   'ingest',
   'rebalance',
+  'manual_pull',
+  'manual_push',
 ]);
 
 export const replicationRunStatusEnum = pgEnum('replication_run_status', [
