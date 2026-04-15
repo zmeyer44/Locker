@@ -14,6 +14,7 @@ export interface UploadFileOptions {
   file: File;
   folderId: string | null;
   workspaceSlug: string;
+  conflictResolution?: "replace" | "keep-both";
   uploads: {
     initiate: TRPCMutate;
     complete: TRPCMutate;
@@ -24,7 +25,7 @@ export interface UploadFileOptions {
 }
 
 export async function uploadFile(opts: UploadFileOptions): Promise<string> {
-  const { file, folderId, workspaceSlug, uploads, onProgress, abortSignal } =
+  const { file, folderId, workspaceSlug, conflictResolution, uploads, onProgress, abortSignal } =
     opts;
 
   // Step 1: Initiate upload
@@ -33,6 +34,7 @@ export async function uploadFile(opts: UploadFileOptions): Promise<string> {
     fileSize: file.size,
     contentType: file.type || 'application/octet-stream',
     folderId,
+    conflictResolution,
   });
 
   const { fileId, strategy } = initResult;

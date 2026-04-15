@@ -49,6 +49,10 @@ export async function createPendingFileUpload(params: {
           params.overwrite ?? false,
         );
 
+        // Derive display name from the (possibly deduplicated) objectKey
+        // so "keep both" files show "report (1).pdf" instead of duplicate "report.pdf"
+        const resolvedFileName = objectKey.split("/").pop() ?? params.fileName;
+
         const storagePath = buildStoreTargetPath(
           primary.store,
           workspaceId,
@@ -89,7 +93,7 @@ export async function createPendingFileUpload(params: {
           userId,
           folderId: params.folderId,
           blobId,
-          name: params.fileName,
+          name: resolvedFileName,
           mimeType: params.mimeType,
           size: params.size,
           storagePath,

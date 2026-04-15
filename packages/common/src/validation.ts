@@ -135,11 +135,17 @@ export const updateMemberRoleSchema = z.object({
 
 // ── Upload schemas ─────────────────────────────────────────────────────
 
+export const checkConflictsSchema = z.object({
+  folderId: z.string().uuid().nullable().optional(),
+  fileNames: z.array(z.string().min(1).max(255)).min(1).max(100),
+});
+
 export const initiateUploadSchema = z.object({
   fileName: z.string().min(1).max(255),
   fileSize: z.number().int().min(1).max(MAX_FILE_SIZE),
   contentType: z.string().min(1).max(255),
   folderId: z.string().uuid().nullable().optional(),
+  conflictResolution: z.enum(["keep-both", "replace"]).optional(),
 });
 
 export const completeUploadSchema = z.object({

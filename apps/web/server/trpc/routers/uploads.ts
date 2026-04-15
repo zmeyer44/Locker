@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, isNull, inArray } from "drizzle-orm";
 import { createRouter, workspaceProcedure } from "../init";
 import { fileBlobs, files, folders, workspaces } from "@locker/database";
 import {
@@ -9,6 +9,7 @@ import {
 } from "../../../server/storage";
 import { invalidateWorkspaceVfsSnapshot } from "../../vfs/locker-vfs";
 import {
+  checkConflictsSchema,
   initiateUploadSchema,
   completeUploadSchema,
   abortUploadSchema,
@@ -19,7 +20,7 @@ import {
   createPendingFileUpload,
   markFileUploadReady,
 } from "../../stores/file-records";
-import { runFileReadyHooks } from "../../stores/lifecycle";
+import { runFileReadyHooks, deleteFileEverywhere } from "../../stores/lifecycle";
 
 export const uploadsRouter = createRouter({
   getProvider: workspaceProcedure.query(async ({ ctx }) => {
@@ -32,10 +33,76 @@ export const uploadsRouter = createRouter({
     };
   }),
 
+  checkConflicts: workspaceProcedure
+    .input(checkConflictsSchema)
+    .mutation(async ({ ctx, input }) => {
+      const { db, workspaceId } = ctx;
+      const folderId = input.folderId ?? null;
+
+      const existing = await db
+        .select({ id: files.id, name: files.name, size: files.size })
+        .from(files)
+        .where(
+          and(
+            eq(files.workspaceId, workspaceId),
+            eq(files.status, "ready"),
+            folderId ? eq(files.folderId, folderId) : isNull(files.folderId),
+            inArray(files.name, input.fileNames),
+          ),
+        );
+
+      return existing;
+    }),
+
   initiate: workspaceProcedure
     .input(initiateUploadSchema)
     .mutation(async ({ ctx, input }) => {
       const { db, workspaceId, userId } = ctx;
+      const folderId = input.folderId ?? null;
+
+      // Validate folder ownership
+      if (folderId) {
+        const [folder] = await db
+          .select({ id: folders.id })
+          .from(folders)
+          .where(
+            and(
+              eq(folders.id, folderId),
+              eq(folders.workspaceId, workspaceId),
+            ),
+          );
+        if (!folder) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Folder not found",
+          });
+        }
+      }
+
+      // If replacing, delete the existing file first (frees storage quota)
+      if (input.conflictResolution === "replace") {
+        const [existing] = await db
+          .select({ id: files.id })
+          .from(files)
+          .where(
+            and(
+              eq(files.workspaceId, workspaceId),
+              eq(files.status, "ready"),
+              eq(files.name, input.fileName),
+              folderId ? eq(files.folderId, folderId) : isNull(files.folderId),
+            ),
+          )
+          .limit(1);
+
+        if (existing) {
+          await deleteFileEverywhere({
+            db,
+            workspaceId,
+            fileId: existing.id,
+            deletedByUserId: userId,
+          });
+        }
+      }
 
       // Check storage quota (skipped for BYOB and self-hosted/local)
       if (await shouldEnforceQuota(workspaceId)) {
@@ -58,34 +125,16 @@ export const uploadsRouter = createRouter({
         }
       }
 
-      // Validate folder ownership
-      if (input.folderId) {
-        const [folder] = await db
-          .select({ id: folders.id })
-          .from(folders)
-          .where(
-            and(
-              eq(folders.id, input.folderId),
-              eq(folders.workspaceId, workspaceId),
-            ),
-          );
-        if (!folder) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Folder not found",
-          });
-        }
-      }
-
       const pending = await createPendingFileUpload({
         db,
         workspaceId,
         userId,
-        folderId: input.folderId ?? null,
+        folderId,
         fileName: input.fileName,
         mimeType: input.contentType,
         size: input.fileSize,
         status: "uploading",
+        overwrite: input.conflictResolution === "replace",
       });
 
       // Determine upload strategy

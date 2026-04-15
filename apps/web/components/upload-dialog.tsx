@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, X, CheckCircle, AlertCircle, Loader2, Tag, Check } from "lucide-react";
+import { Upload, X, CheckCircle, AlertCircle, Loader2, Tag, Check, AlertTriangle } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { cn, formatBytes } from "@/lib/utils";
 import { FileIcon } from "@/components/file-icon";
@@ -25,11 +25,18 @@ import {
 } from "@/components/ui/dialog";
 import { MAX_FILE_SIZE } from "@locker/common";
 
+interface FileConflict {
+  existingFileId: string;
+  existingFileSize: number;
+  resolution: "replace" | "keep-both" | null;
+}
+
 interface UploadFileEntry {
   file: File;
   status: "pending" | "uploading" | "done" | "error";
   error?: string;
   progress?: number;
+  conflict?: FileConflict;
 }
 
 export function UploadDialog({
@@ -58,6 +65,49 @@ export function UploadDialog({
   const completeMutation = trpc.uploads.complete.useMutation();
   const abortMutation = trpc.uploads.abort.useMutation();
   const setFileTagsMutation = trpc.tags.setFileTags.useMutation();
+  const checkConflictsMutation = trpc.uploads.checkConflicts.useMutation();
+
+  const checkConflicts = useCallback(
+    async (entries: UploadFileEntry[]) => {
+      const pendingNames = entries
+        .filter((e) => e.status === "pending")
+        .map((e) => e.file.name);
+      if (pendingNames.length === 0) return;
+
+      try {
+        const existing = await checkConflictsMutation.mutateAsync({
+          folderId,
+          fileNames: pendingNames,
+        });
+
+        if (existing.length === 0) return;
+
+        const conflictMap = new Map(
+          existing.map((e) => [e.name, { id: e.id, size: Number(e.size) }]),
+        );
+
+        setFiles((prev) =>
+          prev.map((f) => {
+            const match = conflictMap.get(f.file.name);
+            if (match && f.status === "pending") {
+              return {
+                ...f,
+                conflict: {
+                  existingFileId: match.id,
+                  existingFileSize: match.size,
+                  resolution: null,
+                },
+              };
+            }
+            return f;
+          }),
+        );
+      } catch {
+        // Graceful degradation — proceed without conflict info
+      }
+    },
+    [folderId, checkConflictsMutation],
+  );
 
   // Populate files when opened with initialFiles (from desktop drop)
   useEffect(() => {
@@ -68,19 +118,26 @@ export function UploadDialog({
       initialFiles !== initializedFor
     ) {
       setInitializedFor(initialFiles);
-      setFiles(
-        initialFiles.map((file) => ({ file, status: "pending" as const })),
-      );
+      const entries = initialFiles.map((file) => ({
+        file,
+        status: "pending" as const,
+      }));
+      setFiles(entries);
+      checkConflicts(entries);
     }
-  }, [open, initialFiles, initializedFor]);
+  }, [open, initialFiles, initializedFor, checkConflicts]);
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newFiles = acceptedFiles.map((file) => ({
-      file,
-      status: "pending" as const,
-    }));
-    setFiles((prev) => [...prev, ...newFiles]);
-  }, []);
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      const newEntries = acceptedFiles.map((file) => ({
+        file,
+        status: "pending" as const,
+      }));
+      setFiles((prev) => [...prev, ...newEntries]);
+      checkConflicts(newEntries);
+    },
+    [checkConflicts],
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -94,6 +151,29 @@ export function UploadDialog({
 
   const removeFile = (index: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const resolveConflict = (
+    index: number,
+    resolution: "replace" | "keep-both",
+  ) => {
+    setFiles((prev) =>
+      prev.map((f, i) =>
+        i === index && f.conflict
+          ? { ...f, conflict: { ...f.conflict, resolution } }
+          : f,
+      ),
+    );
+  };
+
+  const resolveAllConflicts = (resolution: "replace" | "keep-both") => {
+    setFiles((prev) =>
+      prev.map((f) =>
+        f.conflict && f.conflict.resolution === null
+          ? { ...f, conflict: { ...f.conflict, resolution } }
+          : f,
+      ),
+    );
   };
 
   const handleUpload = async () => {
@@ -120,6 +200,7 @@ export function UploadDialog({
           file: entry.file,
           folderId,
           workspaceSlug: workspace.slug,
+          conflictResolution: entry.conflict?.resolution ?? undefined,
           uploads: {
             initiate: initiateMutation,
             complete: completeMutation,
@@ -207,6 +288,10 @@ export function UploadDialog({
   };
 
   const pendingCount = files.filter((f) => f.status === "pending").length;
+  const unresolvedConflicts = files.filter(
+    (f) => f.status === "pending" && f.conflict?.resolution === null,
+  );
+  const hasUnresolvedConflicts = unresolvedConflicts.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -240,49 +325,114 @@ export function UploadDialog({
         </div>
 
         {files.length > 0 && (
-          <div className="max-h-48 overflow-auto space-y-1">
-            {files.map((entry, i) => (
-              <div
-                key={i}
-                className="flex flex-col gap-1 px-2 py-1.5 rounded-md bg-muted/50"
-              >
-                <div className="flex items-center gap-2">
-                  <FileIcon
-                    name={entry.file.name}
-                    mimeType={entry.file.type}
-                    className="size-3.5 shrink-0"
-                  />
-                  <span className="text-xs truncate flex-1">
-                    {entry.file.name}
+          <>
+            {/* Batch conflict actions */}
+            {unresolvedConflicts.length >= 2 && !uploading && (
+              <div className="flex items-center justify-between px-2 py-1.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                <span className="text-xs text-amber-700 dark:text-amber-400">
+                  {unresolvedConflicts.length} files already exist
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => resolveAllConflicts("replace")}
+                    className="text-xs font-medium text-amber-700 dark:text-amber-400 hover:underline"
+                  >
+                    Replace all
+                  </button>
+                  <span className="text-xs text-amber-400 dark:text-amber-600">
+                    |
                   </span>
-                  <span className="text-xs font-mono text-muted-foreground shrink-0">
-                    {formatBytes(entry.file.size)}
-                  </span>
-
-                  {entry.status === "done" && (
-                    <CheckCircle className="size-3.5 text-green-500 shrink-0" />
-                  )}
-                  {entry.status === "error" && (
-                    <AlertCircle className="size-3.5 text-destructive shrink-0" />
-                  )}
-                  {entry.status === "pending" && !uploading && (
-                    <button
-                      onClick={() => removeFile(i)}
-                      className="size-4 flex items-center justify-center hover:bg-muted rounded-sm cursor-pointer"
-                    >
-                      <X className="size-3 text-muted-foreground" />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => resolveAllConflicts("keep-both")}
+                    className="text-xs font-medium text-amber-700 dark:text-amber-400 hover:underline"
+                  >
+                    Keep all
+                  </button>
                 </div>
-
-                {/* Progress bar for active uploads */}
-                {entry.status === "uploading" &&
-                  entry.progress !== undefined && (
-                    <Progress value={entry.progress} className="h-1" />
-                  )}
               </div>
-            ))}
-          </div>
+            )}
+
+            <div className="max-h-48 overflow-auto space-y-1">
+              {files.map((entry, i) => (
+                <div
+                  key={i}
+                  className="flex flex-col gap-1 px-2 py-1.5 rounded-md bg-muted/50"
+                >
+                  <div className="flex items-center gap-2">
+                    <FileIcon
+                      name={entry.file.name}
+                      mimeType={entry.file.type}
+                      className="size-3.5 shrink-0"
+                    />
+                    <span className="text-xs truncate flex-1">
+                      {entry.file.name}
+                    </span>
+                    <span className="text-xs font-mono text-muted-foreground shrink-0">
+                      {formatBytes(entry.file.size)}
+                    </span>
+
+                    {entry.status === "done" && (
+                      <CheckCircle className="size-3.5 text-green-500 shrink-0" />
+                    )}
+                    {entry.status === "error" && (
+                      <AlertCircle className="size-3.5 text-destructive shrink-0" />
+                    )}
+                    {entry.status === "pending" && !uploading && (
+                      <button
+                        onClick={() => removeFile(i)}
+                        className="size-4 flex items-center justify-center hover:bg-muted rounded-sm cursor-pointer"
+                      >
+                        <X className="size-3 text-muted-foreground" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Conflict resolution UI */}
+                  {entry.conflict &&
+                    entry.status === "pending" &&
+                    !uploading && (
+                      <div className="flex items-center gap-1.5 ml-5">
+                        {entry.conflict.resolution === null ? (
+                          <>
+                            <AlertTriangle className="size-3 text-amber-500 shrink-0" />
+                            <span className="text-xs text-amber-600 dark:text-amber-400">
+                              File exists
+                            </span>
+                            <button
+                              onClick={() => resolveConflict(i, "replace")}
+                              className="text-xs font-medium text-primary hover:underline"
+                            >
+                              Replace
+                            </button>
+                            <span className="text-xs text-muted-foreground">
+                              |
+                            </span>
+                            <button
+                              onClick={() => resolveConflict(i, "keep-both")}
+                              className="text-xs font-medium text-primary hover:underline"
+                            >
+                              Keep both
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            {entry.conflict.resolution === "replace"
+                              ? "Will replace existing"
+                              : "Will keep both"}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                  {/* Progress bar for active uploads */}
+                  {entry.status === "uploading" &&
+                    entry.progress !== undefined && (
+                      <Progress value={entry.progress} className="h-1" />
+                    )}
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {pendingCount > 0 && !uploading && (
@@ -337,7 +487,11 @@ export function UploadDialog({
                 )}
               </PopoverContent>
             </Popover>
-            <Button onClick={handleUpload} className="flex-1">
+            <Button
+              onClick={handleUpload}
+              disabled={hasUnresolvedConflicts}
+              className="flex-1"
+            >
               <Upload />
               Upload {pendingCount} {pendingCount === 1 ? "file" : "files"}
             </Button>

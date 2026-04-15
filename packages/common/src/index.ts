@@ -101,6 +101,7 @@ export {
   updateWorkspaceSchema,
   inviteMemberSchema,
   updateMemberRoleSchema,
+  checkConflictsSchema,
   initiateUploadSchema,
   completeUploadSchema,
   abortUploadSchema,
