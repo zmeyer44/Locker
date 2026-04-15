@@ -1,3 +1,7 @@
+-- Column to track which file a pending upload will replace on completion.
+-- Server-only — never exposed to clients. Null for non-replace uploads.
+ALTER TABLE files ADD COLUMN replaces_file_id UUID;--> statement-breakpoint
+
 -- Deduplicate existing files with colliding (workspace_id, folder_id, name)
 -- where status = 'ready'. The earliest file (by created_at) keeps its name.
 -- Later duplicates get renamed to "name (N)" using the first available suffix

@@ -26,6 +26,7 @@ export async function createPendingFileUpload(params: {
   blobId?: string;
   s3Key?: string | null;
   overwrite?: boolean;
+  replacesFileId?: string | null;
 }) {
   const { db, workspaceId, userId } = params;
   const fileId = params.fileId ?? randomUUID();
@@ -100,6 +101,7 @@ export async function createPendingFileUpload(params: {
           storageProvider: primary.providerName,
           status: params.status ?? "uploading",
           s3Key: params.s3Key ?? null,
+          replacesFileId: params.replacesFileId ?? null,
         });
 
         return {

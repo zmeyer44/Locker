@@ -10,7 +10,7 @@ import {
 import { eq, and, sql } from "drizzle-orm";
 import { invalidateWorkspaceVfsSnapshot } from "../../../../server/vfs/locker-vfs";
 import { markFileUploadReady } from "../../../../server/stores/file-records";
-import { runFileReadyHooks } from "../../../../server/stores/lifecycle";
+import { runFileReadyHooks, deleteFileEverywhere } from "../../../../server/stores/lifecycle";
 
 export const runtime = "nodejs";
 
@@ -98,9 +98,21 @@ export async function PUT(req: NextRequest) {
 
   // Enforce quota based on where bytes actually land (the file's config),
   // not the workspace's current config which may have changed since initiate.
+  // For replace uploads, subtract the existing file's size from the net increase.
   if (await shouldEnforceQuotaForFile(fileRecord.id)) {
+    let freedBytes = 0;
+    if (fileRecord.replacesFileId) {
+      const [replacedFile] = await db
+        .select({ size: files.size })
+        .from(files)
+        .where(eq(files.id, fileRecord.replacesFileId))
+        .limit(1);
+      freedBytes = Number(replacedFile?.size ?? 0);
+    }
+
+    const netIncrease = contentLength - freedBytes;
     if (
-      (membership.storageUsed ?? 0) + contentLength >
+      (membership.storageUsed ?? 0) + netIncrease >
       (membership.storageLimit ?? 0)
     ) {
       return NextResponse.json(
@@ -119,6 +131,31 @@ export async function PUT(req: NextRequest) {
       data: req.body as unknown as ReadableStream,
       contentType,
     });
+
+    // For replace: delete the old file now that the new upload has succeeded.
+    // Read replacesFileId from the file record (set during initiate).
+    if (fileRecord.replacesFileId) {
+      const [replacedFile] = await db
+        .select({ name: files.name })
+        .from(files)
+        .where(eq(files.id, fileRecord.replacesFileId))
+        .limit(1);
+
+      await deleteFileEverywhere({
+        db,
+        workspaceId: membership.workspaceId,
+        fileId: fileRecord.replacesFileId,
+        deletedByUserId: userId,
+      });
+
+      // Restore the original display name (dedup gave the new file a temp name)
+      if (replacedFile) {
+        await db
+          .update(files)
+          .set({ name: replacedFile.name })
+          .where(eq(files.id, fileId));
+      }
+    }
 
     // Mark file as ready
     await markFileUploadReady({ db, fileId });

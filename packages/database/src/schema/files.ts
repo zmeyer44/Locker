@@ -39,6 +39,7 @@ export const files = pgTable(
     thumbnailPath: text("thumbnail_path"),
     checksum: varchar("checksum", { length: 128 }),
     s3Key: text("s3_key"),
+    replacesFileId: uuid("replaces_file_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

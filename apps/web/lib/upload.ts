@@ -37,10 +37,7 @@ export async function uploadFile(opts: UploadFileOptions): Promise<string> {
     conflictResolution,
   });
 
-  const { fileId, strategy, replaceFileId, originalFileName } = initResult;
-
-  // Fields echoed back to `complete` for deferred replace
-  const completeBase = { fileId, replaceFileId, originalFileName };
+  const { fileId, strategy } = initResult;
 
   try {
     if (strategy === 'server-buffered') {
@@ -57,7 +54,7 @@ export async function uploadFile(opts: UploadFileOptions): Promise<string> {
         onProgress,
         abortSignal,
       );
-      await uploads.complete.mutateAsync(completeBase);
+      await uploads.complete.mutateAsync({ fileId });
       return fileId;
     }
 
@@ -71,7 +68,7 @@ export async function uploadFile(opts: UploadFileOptions): Promise<string> {
         abortSignal,
       );
       await uploads.complete.mutateAsync({
-        ...completeBase,
+        fileId,
         uploadId: initResult.uploadId,
         parts,
       });

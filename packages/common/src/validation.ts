@@ -150,8 +150,6 @@ export const initiateUploadSchema = z.object({
 
 export const completeUploadSchema = z.object({
   fileId: z.string().uuid(),
-  replaceFileId: z.string().uuid().optional(),
-  originalFileName: z.string().min(1).max(255).optional(),
   uploadId: z.string().optional(),
   parts: z
     .array(

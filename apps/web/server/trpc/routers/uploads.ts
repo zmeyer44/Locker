@@ -145,6 +145,8 @@ export const uploadsRouter = createRouter({
 
       // Don't delete the old file here — defer to `complete` so the original
       // survives if the upload fails. Let dedup assign a temporary unique name.
+      // Store replaceFileId on the file record so the server can look it up
+      // in complete/stream without trusting a client-supplied value.
       const pending = await createPendingFileUpload({
         db,
         workspaceId,
@@ -154,14 +156,13 @@ export const uploadsRouter = createRouter({
         mimeType: input.contentType,
         size: input.fileSize,
         status: "uploading",
+        replacesFileId: replaceFileId ?? null,
       });
 
       // Base response fields shared by all strategies
       const base = {
         fileId: pending.fileId,
         storagePath: pending.storagePath,
-        replaceFileId,
-        originalFileName: replaceFileId ? input.fileName : undefined,
       };
 
       // Determine upload strategy
@@ -236,20 +237,27 @@ export const uploadsRouter = createRouter({
       }
 
       // For replace: delete the old file now that the new upload has succeeded.
-      // This is deferred from `initiate` so the original survives upload failures.
-      if (input.replaceFileId) {
+      // Read replaceFileId from the file record (set during initiate) — never
+      // trust client input for which file to delete.
+      if (file.replacesFileId) {
+        const [replacedFile] = await db
+          .select({ name: files.name })
+          .from(files)
+          .where(eq(files.id, file.replacesFileId))
+          .limit(1);
+
         await deleteFileEverywhere({
           db,
           workspaceId,
-          fileId: input.replaceFileId,
+          fileId: file.replacesFileId,
           deletedByUserId: ctx.userId,
         });
 
         // Restore the original display name (dedup gave the new file a temp name)
-        if (input.originalFileName) {
+        if (replacedFile) {
           await db
             .update(files)
-            .set({ name: input.originalFileName })
+            .set({ name: replacedFile.name })
             .where(eq(files.id, input.fileId));
         }
       }
