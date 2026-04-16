@@ -108,15 +108,35 @@ export const createWorkspaceSchema = z.object({
   name: z.string().min(1).max(100).trim(),
 });
 
+const baseColorNames = [
+  "neutral", "stone", "zinc", "mauve", "olive", "mist", "taupe",
+] as const;
+const accentColorNames = [
+  "amber", "blue", "cyan", "emerald", "fuchsia", "green", "indigo",
+  "lime", "orange", "pink", "purple", "red", "rose", "sky", "teal",
+  "violet", "yellow",
+] as const;
+const radiusNames = ["none", "small", "medium", "large"] as const;
+const fontNames = [
+  "geist", "inter", "roboto", "open-sans", "lato", "poppins", "raleway",
+  "dm-sans", "figtree", "source-sans", "nunito", "playfair", "lora",
+  "merriweather", "source-serif", "jetbrains-mono", "fira-code",
+] as const;
+const headingFontNames = ["inherit", ...fontNames] as const;
+const menuColorValues = [
+  "default", "inverted", "default-translucent", "inverted-translucent",
+] as const;
+const menuAccentValues = ["subtle", "bold"] as const;
+
 export const workspaceThemeConfigSchema = z.object({
-  baseColor: z.string().min(1).max(50),
-  accentColor: z.string().min(1).max(50),
-  radius: z.string().min(1).max(50),
-  chartColor: z.string().min(1).max(50),
-  bodyFont: z.string().min(1).max(50),
-  headingFont: z.string().min(1).max(50),
-  menuColor: z.string().min(1).max(50),
-  menuAccent: z.string().min(1).max(50),
+  baseColor: z.enum(baseColorNames),
+  accentColor: z.enum(accentColorNames),
+  radius: z.enum(radiusNames),
+  chartColor: z.enum(accentColorNames),
+  bodyFont: z.enum(fontNames),
+  headingFont: z.enum(headingFontNames),
+  menuColor: z.enum(menuColorValues),
+  menuAccent: z.enum(menuAccentValues),
 });
 
 export const updateWorkspaceSchema = z.object({

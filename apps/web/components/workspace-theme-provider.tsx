@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useTheme } from "next-themes";
 import type { WorkspaceThemeConfig } from "@/lib/theme-presets";
 import {
@@ -16,11 +16,14 @@ export function WorkspaceThemeStyle({
   themeConfig: Partial<WorkspaceThemeConfig> | null;
 }) {
   const { resolvedTheme } = useTheme();
-  const config: WorkspaceThemeConfig = {
-    ...DEFAULT_THEME_CONFIG,
-    ...themeConfig,
-  };
-  const { light, dark } = buildThemeCssVars(config);
+
+  const config = useMemo<WorkspaceThemeConfig>(
+    () => ({ ...DEFAULT_THEME_CONFIG, ...themeConfig }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(themeConfig)],
+  );
+
+  const { light, dark } = useMemo(() => buildThemeCssVars(config), [config]);
 
   // Load Google Fonts
   useEffect(() => {
@@ -39,7 +42,7 @@ export function WorkspaceThemeStyle({
     return () => {
       for (const link of links) link.remove();
     };
-  }, [config.bodyFont, config.headingFont]);
+  }, [config]);
 
   // Apply CSS variables and font overrides
   useEffect(() => {

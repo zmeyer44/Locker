@@ -31,11 +31,11 @@ export const workspaces = pgTable(
       baseColor: string;
       accentColor: string;
       radius: string;
-      chartColor?: string;
-      bodyFont?: string;
-      headingFont?: string;
-      menuColor?: string;
-      menuAccent?: string;
+      chartColor: string;
+      bodyFont: string;
+      headingFont: string;
+      menuColor: string;
+      menuAccent: string;
     }>(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

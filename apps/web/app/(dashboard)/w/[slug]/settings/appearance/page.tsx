@@ -198,6 +198,14 @@ export default function AppearancePage() {
     } else {
       root.style.removeProperty("--font-heading");
     }
+    // Cleanup: remove preview vars so they don't leak when navigating away
+    return () => {
+      for (const key of Object.keys(vars)) {
+        root.style.removeProperty(`--${key}`);
+      }
+      root.style.removeProperty("--font-sans");
+      root.style.removeProperty("--font-heading");
+    };
   }, [currentConfig, resolvedTheme]);
 
   const update = trpc.workspaces.update.useMutation({
@@ -209,7 +217,8 @@ export default function AppearancePage() {
   });
 
   const handleSave = () => {
-    update.mutate({ themeConfig: currentConfig });
+    // Values come from our constant arrays so the cast is safe
+    update.mutate({ themeConfig: currentConfig as Parameters<typeof update.mutate>[0]["themeConfig"] });
   };
 
   const applyConfig = useCallback((config: WorkspaceThemeConfig) => {
